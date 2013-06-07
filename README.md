@@ -1,10 +1,23 @@
 # Waffle - A Dependency-Injection-based Python Application Framework
 
-Waffle provides common functionality for bootstrapping an application using [Injector](https://github.com/alecthomas/injector). It provides:
+Waffle provides common functionality for bootstrapping an application using [Injector](https://github.com/alecthomas/injector).
+
+The general approach used by the Injector modules in Waffle is to use flags to configure the behaviour of objects exported by the modules. The flag defaults can (and sometimes must) be overridden by the `@main` decorator or `run()` function.
+
+For example, `waffle.redis.RedisModule` relies on the flag `--redis_server` to connect to a Redis server, which defaults to `localhost:6379:0`. To configure and use the Redis module you might do something like this:
+
+```python
+@main(redis_server='redis.domain.com:6379:1')
+def main(injector):
+    redis = injector.get(Redis)
+```
+
+Waffle provides:
 
 1. Command line flag parsing via argh.
 2. Injection of flags.
 3. Construction of the injector.
+4. A bunch of modules that provide different integration: Redis, SQLAlchemy, Flask, logging, etc.
 
 ## Examples
 

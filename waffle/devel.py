@@ -1,7 +1,7 @@
 import logging
 
 import gevent
-from injector import Module, inject, singleton
+from injector import Module, MappingKey, inject, singleton, provides
 from gevent.backdoor import BackdoorServer
 
 from waffle.flags import Flag, flag
@@ -10,20 +10,23 @@ from waffle.flags import Flag, flag
 flag('--console_port', help='Port for debugging console [%(default)s].', metavar='PORT', default=8001)
 
 
-class DevelModule(Module):
-    """Configuration useful for development."""
+DebugConsoleContext = MappingKey('DebugConsoleContext')
 
-    @inject(debug=Flag('debug'))
-    def configure(self, binder, debug):
-        if not debug:
-            logging.info('Developer tools disabled in production mode')
-            return
-        binder.bind(BackdoorServer, to=self.provide_backdoor_server)
+
+class DevelModule(Module):
+    """Configuration useful for development.
+
+    - Exports a BackdoorServer REPL on --console_port: injector.get(BackdoorServer).start()
+    - The locals of the REPL can be contributed to by providing DebugConsoleContext.
+    """
+
+    def configure(self, binder):
+        binder.multibind(DebugConsoleContext, to={'injector': binder.injector})
 
     @singleton
-    @inject(console_port=Flag('console_port'))
-    def provide_backdoor_server(self, console_port):
+    @provides(BackdoorServer)
+    @inject(console_port=Flag('console_port'), debug_console_context=DebugConsoleContext)
+    def provide_backdoor_server(self, console_port, debug_console_context):
         logging.warning('Starting console server on telnet://127.0.0.1:%d', console_port)
-        backdoor = BackdoorServer(('127.0.0.1', console_port), locals())
-        gevent.spawn(backdoor.serve_forever)
-        return backdoor
+        backdoor = BackdoorServer(('127.0.0.1', console_port), debug_console_context)
+        return gevent.Greenlet(backdoor.serve_forever)

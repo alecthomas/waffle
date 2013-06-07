@@ -1,6 +1,6 @@
 import logging
 
-from injector import Module, inject
+from injector import Module, inject, provides
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
@@ -27,8 +27,9 @@ class DatabaseModule(Module):
     - Uses the --database_uri flag.
     """
 
+    @provides(Session)
     @inject(database_uri=Flag('database_uri'), log_level=LogLevel)
-    def configure(self, binder, database_uri, log_level):
+    def provide_db_session(self, database_uri, log_level):
         assert database_uri, '--database_uri not set, set a default in main() or run()'
         logging.getLogger('sqlalchemy.engine').setLevel(log_level)
         logging.info('Connecting to %s', database_uri)
@@ -38,6 +39,4 @@ class DatabaseModule(Module):
                                               bind=engine))
         Base.query = session.query_property()
         Base.metadata.create_all(bind=engine)
-
-        # Bind the session.
-        binder.bind(Session, to=session)
+        return session

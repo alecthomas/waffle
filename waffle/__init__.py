@@ -9,4 +9,4 @@ Flask + Injector + SQLAlchemy + Jinja2
         print 'my app'
 """
 
-from waffle.app import main
+from waffle.app import main, modules, run, command

@@ -1,4 +1,8 @@
-from waffle.flags import parser, dispatch, add_commands, set_default_command, expects_obj
+from functools import wraps
+
+from injector import Injector
+
+from waffle.flags import FlagsModule, parser, dispatch, add_commands, set_default_command, expects_obj
 
 
 """Running the app.
@@ -10,7 +14,7 @@ There are two primary options:
     from waffle.app import main
 
     @main
-    def main(args):
+    def main(injector):
         pass
 
 2. Multiple command entry points:
@@ -18,15 +22,24 @@ There are two primary options:
     from waffle.app import command, run
 
     @command
-    def start(args):
+    def start(injector):
         pass
 
     @command
-    def stop(args):
+    def stop(injector):
         pass
 
     run()
 """
+
+
+def _create_injector(f):
+    @wraps(f)
+    def wrapper(args):
+        modules = [FlagsModule(args)] + list(getattr(f, '__injector_modules__', []))
+        injector = Injector(modules)
+        return f(injector)
+    return wrapper
 
 
 def run(**defaults):
@@ -35,9 +48,19 @@ def run(**defaults):
     dispatch(parser)
 
 
+def modules(*modules):
+    """A decorator that specifies Injector modules to use when bootstrapping the application.
+
+    Must be provided *after* @command or @main."""
+    def wrapper(f):
+        f.__injector_modules__ = modules
+        return f
+    return wrapper
+
+
 def command(f):
     """A decorator to add a function as a command."""
-    f = expects_obj(f)
+    f = expects_obj(_create_injector(f))
     add_commands(parser, [f])
     return f
 
@@ -48,20 +71,20 @@ def main(_f=None, **defaults):
     Basic usage:
 
         @main
-        def main():
+        def main(injector):
             pass
 
     Optionally provide defaults for global flags:
 
         @main(database_uri='sqlite:///t.db')
-        def main():
+        def main(injector):
             pass
     """
     def wrapper(f):
-        parser.set_defaults(**defaults)
-        f = expects_obj(f)
+        f = expects_obj(_create_injector(f))
         set_default_command(parser, f)
-        run()
+        run(**defaults)
+
     if _f is not None:
         wrapper(_f)
         return

@@ -13,8 +13,8 @@ from waffle.flags import Flag, flag
 LogLevel = Key('LogLevel')
 
 
-flag('--log-to-stdout', action='store_true', help='Log to stdout.')
-flag('--log-format', help='Python logging format [%(default)s].', default='%(levelname)-8s %(message)s', metavar='FORMAT')
+flag('--log_to_stdout', action='store_true', help='Log to stdout.')
+flag('--log_format', help='Python logging format [%(default)s].', default='%(levelname)-8s %(message)s', metavar='FORMAT')
 
 
 class LoggingModule(Module):

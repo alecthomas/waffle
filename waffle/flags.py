@@ -26,15 +26,17 @@ flag('--debug', help='Enable debug mode.', default=False, action='store_true')
 _flag_keys = {}
 
 
+def _flag_name(name):
+    return 'Flag' + name.title().replace('_', '')
+
+
 def Flag(name):
     """An injector binding key for an individual flag."""
-    if name in _flag_keys:
+    try:
         return _flag_keys[name]
-    for option in parser._actions:
-        _flag_keys[name] = Key('Flag%s' % name.title())
-    if name in _flag_keys:
-        return _flag_keys[name]
-    raise ValueError('unknown flag --%s' % name)
+    except KeyError:
+        key = _flag_keys[name] = Key(_flag_name(name))
+        return key
 
 
 class FlagsModule(Module):
@@ -57,4 +59,4 @@ class FlagsModule(Module):
         for option in parser._actions:
             if option.dest not in ('help', '==SUPPRESS=='):
                 value = getattr(self.args, option.dest, option.default)
-                binder.bind(Flag(option.dest), to=value)
+                binder.bind(Flag(option.dest), to=lambda v=value: v)

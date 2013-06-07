@@ -1,7 +1,7 @@
 import codecs
 import os
 
-from injector import Module, ParameterizedBuilder, MappingKey, inject, singleton
+from injector import Module, ParameterizedBuilder, MappingKey, inject, singleton, provides
 from jinja2 import Environment, BaseLoader, TemplateNotFound
 
 from waffle.flags import Flag, flag
@@ -73,4 +73,8 @@ class TemplateModule(Module):
         binder.multibind(TemplateContext, to={
             'debug': debug,
         })
-        binder.bind(Environment, to=Environment(loader=loader), scope=singleton)
+
+    @singleton
+    @provides(Environment)
+    def provides_template_environment(self, loader):
+        return Environment(loader=loader)

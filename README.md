@@ -147,7 +147,13 @@ Binds the key `LogLevel` to the specified log level.
 
 ### waffle.devel.DevelModule
 
-A module that starts the gevent `BackdoorServer`, allowing the developer to attach to a Python shell in the application.
+A module that binds the gevent `BackdoorServer`, allowing the developer to attach to a Python shell in the application.
+
+Use like so:
+
+```python
+injector.get(BackdoorServer).start()
+```
 
 ### waffle.web.db.DatabaseSessionModule
 
@@ -172,3 +178,7 @@ To inject a compiled template:
 def index(template):
     return template.render()
 ```
+
+### waffle.redis.RedisModule
+
+Provides a Redis client configured by flags.

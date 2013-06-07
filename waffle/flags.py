@@ -44,7 +44,6 @@ class FlagsModule(Module):
     Note that this will only bind global flags.
     """
     def __init__(self, args):
-        super(FlagsModule, self).__init__()
         self.args = args
 
     def configure(self, binder):

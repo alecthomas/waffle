@@ -6,7 +6,9 @@ Waffle provides common functionality for bootstrapping an application using [Inj
 2. Injection of flags.
 3. Construction of the injector.
 
-A bare bones application:
+## Examples
+
+### A bare bones application
 
 ```python
 from waffle import main
@@ -15,6 +17,8 @@ from waffle import main
 def main(injector):
     print 'Hello world'
 ```
+
+### Injecting modules
 
 A slightly more complex example with injectable flags and some useful default logging:
 
@@ -29,6 +33,8 @@ from waffle.log import LoggingModule
 def main(injector):
     ...
 ```
+
+### Multi-command
 
 An application supporting multiple commands:
 
@@ -48,11 +54,54 @@ run()
 
 `@main` and `run()` should be the last statements in the module.
 
-## Common patterns
+### A full example web server with database
 
-### Setting defaults for flags
+This example also shows how to set defaults for flags, by passing the flags as keyword arguments to either `main()` or `run()`.
 
-This can be done before executing the entry point, by passing the flags as keyword arguments to either `main()` or `run()`.
+
+```python
+from flask import Flask
+from injector import inject
+from sqlalchemy import Column, String
+
+from waffle import main, modules
+from waffle.devel import DevelModule
+from waffle.log import LoggingModule
+from waffle.db import DatabaseModule, Base
+from waffle.web import FlaskModule, route, controllers
+from waffle.web.template import TemplateModule, Template
+from waffle.web.db import DatabaseSessionModule
+
+
+class KeyValue(Base):
+    __tablename__ = 'key_value'
+
+    key = Column(String, primary_key=True)
+    value = Column(String)
+
+
+@route('/')
+@inject(template=Template('index.html'))
+def index(template):
+    return template()
+
+
+@route('/foo')
+@inject(template=Template('foo.html'))
+def foo(template):
+    return template()
+
+
+@main(console_port=9999, database_uri='sqlite:///:memory:',
+      static_root='./static/', template_root='./templates/')
+@controllers(index, foo)
+@modules(DevelModule, LoggingModule, DatabaseModule, DatabaseSessionModule,
+         FlaskModule, TemplateModule)
+def main(injector):
+    app = injector.get(Flask)
+    app.run()
+
+```
 
 ## Available modules
 

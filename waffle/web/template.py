@@ -27,11 +27,8 @@ This system does not rely on Flask.
 TemplateContext = MappingKey('TemplateContext')
 
 
-flag(
-    '--template_root',
-    help='Root directory for HTML templates [%(default)s].',
-    metavar='DIR',
-    )
+flag('--template_root', metavar='DIR',
+    help='Root directory for HTML templates [%(default)s].')
 
 
 @singleton

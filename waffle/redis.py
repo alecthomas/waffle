@@ -4,7 +4,7 @@ from injector import Module, singleton, provides, inject
 
 from waffle.flags import Flag, flag
 
-flag('--redis_server', default='localhost:6379:0', help='Host:port:db of Redis server [%(default)s].')
+flag('--redis_server', default='localhost:6379:0', help='Host:port:db of Redis server.')
 
 
 class RedisModule(Module):

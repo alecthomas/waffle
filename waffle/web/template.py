@@ -28,7 +28,7 @@ TemplateContext = MappingKey('TemplateContext')
 
 
 flag('--template_root', metavar='DIR',
-    help='Root directory for HTML templates [%(default)s].')
+    help='Root directory for HTML templates.')
 
 
 @singleton

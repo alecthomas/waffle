@@ -1,3 +1,4 @@
+from argparse import HelpFormatter, SUPPRESS, OPTIONAL, ZERO_OR_MORE
 from argh import *  # Re-export everything from argh
 from injector import Module, Key, singleton
 
@@ -15,7 +16,21 @@ from injector import Module, Key, singleton
 # Parsed command line arguments can be injected with this key.
 Flags = Key('Flags')
 
-parser = ArghParser(fromfile_prefix_chars='@')
+
+class ArgumentDefaultsHelpFormatter(HelpFormatter):
+    def _get_help_string(self, action):
+        help = action.help
+        if '%(default)' not in action.help:
+            if action.default is not SUPPRESS and action.default not in (True, False):
+                defaulting_nargs = [OPTIONAL, ZERO_OR_MORE]
+                if action.option_strings or action.nargs in defaulting_nargs:
+                    if help.endswith('.'):
+                        help = help[:-1]
+                    help += ' [%(default)s].'
+        return help
+
+
+parser = ArghParser(fromfile_prefix_chars='@', formatter_class=ArgumentDefaultsHelpFormatter)
 
 # Add a new flag
 flag = parser.add_argument

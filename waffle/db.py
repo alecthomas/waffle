@@ -10,7 +10,7 @@ from waffle.flags import Flag, flag
 from waffle.log import LogLevel
 
 
-flag('--database_uri', help='Database URI [%(default)s].', metavar='URI')
+flag('--database_uri', help='Database URI.', metavar='URI')
 
 
 # Re-exported for injector binding.

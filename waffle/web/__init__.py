@@ -17,7 +17,7 @@ RequestTeardown = SequenceKey('RequestTeardown')
 ErrorHandlers = MappingKey('ErrorHandlers')
 
 
-flag('--static_root', help='Path to web server static resources [%(default)s].', metavar='PATH')
+flag('--static_root', help='Path to web server static resources.', metavar='PATH')
 
 
 class ControllersModule(Module):

@@ -7,7 +7,7 @@ from jinja2 import Environment, BaseLoader, TemplateNotFound
 from waffle.flags import Flag, flag
 
 
-"""Jinja2 based templating system for Ape.
+"""Jinja2 based templating system for Waffle.
 
 This system does not rely on Flask.
 
@@ -30,8 +30,7 @@ TemplateContext = MappingKey('TemplateContext')
 flag(
     '--template_root',
     help='Root directory for HTML templates [%(default)s].',
-    metavar='PORT',
-    default=os.getcwd(),
+    metavar='DIR',
     )
 
 
@@ -40,6 +39,7 @@ class Loader(BaseLoader):
     """Template loader."""
     @inject(template_root=Flag('template_root'))
     def __init__(self, template_root):
+        assert template_root, 'template_root must be provided'
         self._template_root = template_root
 
     def get_source(self, environment, template):
@@ -64,17 +64,24 @@ class Renderer(object):
 
 def Template(filename):
     """Inject a compiled template."""
-    return ParameterizedBuilder(Renderer, filename=filename)
+    return singleton(ParameterizedBuilder(Renderer, filename=filename))
 
 
 class TemplateModule(Module):
-    @inject(debug=Flag('debug'), template_root=Flag('template_root'), loader=Loader)
-    def configure(self, binder, debug, template_root, loader):
+    """Add support for Jinja2 templates.
+
+    Provides compiled templates via Template(template), and the Environment
+    itself. The default context for a template can be extended by multibinding
+    TemplateContext.
+    """
+    @inject(debug=Flag('debug'))
+    def configure(self, binder, debug):
         binder.multibind(TemplateContext, to={
             'debug': debug,
         })
 
     @singleton
     @provides(Environment)
+    @inject(loader=Loader)
     def provides_template_environment(self, loader):
         return Environment(loader=loader)

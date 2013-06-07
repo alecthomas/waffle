@@ -21,7 +21,7 @@ setup(
     name='waffle',
     url='http://github.com/alecthomas/waffle',
     download_url='http://pypi.python.org/pypi/waffle',
-    version='0.2.0',
+    version='0.2.1',
     options=dict(egg_info=dict(tag_build='')),
     description='Waffle - A Dependency-Injection-based application framework for Python',
     long_description='See http://github.com/alethomas/waffle for details.',

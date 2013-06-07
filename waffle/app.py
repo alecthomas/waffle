@@ -36,7 +36,7 @@ There are two primary options:
 def _create_injector(f):
     @wraps(f)
     def wrapper(args):
-        modules = [FlagsModule(args)] + list(getattr(f, '__injector_modules__', []))
+        modules = [FlagsModule(args)] + getattr(f, '__injector_modules__', [])
         injector = Injector(modules)
         return f(injector)
     return wrapper
@@ -53,7 +53,7 @@ def modules(*modules):
 
     Must be provided *after* @command or @main."""
     def wrapper(f):
-        f.__injector_modules__ = modules
+        f.__injector_modules__ = list(modules)
         return f
     return wrapper
 

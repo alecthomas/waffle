@@ -15,12 +15,11 @@ from injector import Module, Key, singleton
 # Parsed command line arguments can be injected with this key.
 Flags = Key('Flags')
 
-
 parser = ArghParser(fromfile_prefix_chars='@')
 
 # Add a new flag
 flag = parser.add_argument
-flag('--debug', help='Enable debug mode.', default=False, action='store_true')
+flag('--debug', help='Enable debug mode.', action='store_true')
 
 
 _flag_keys = {}
@@ -59,4 +58,4 @@ class FlagsModule(Module):
         for option in parser._actions:
             if option.dest not in ('help', '==SUPPRESS=='):
                 value = getattr(self.args, option.dest, option.default)
-                binder.bind(Flag(option.dest), to=lambda v=value: v)
+                binder.bind(Flag(option.dest), to=lambda v=value: v, scope=singleton)

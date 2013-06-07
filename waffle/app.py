@@ -53,7 +53,7 @@ def modules(*modules):
 
     Must be provided *after* @command or @main."""
     def wrapper(f):
-        f.__injector_modules__ = list(modules)
+        f.__injector_modules__ = getattr(f, '__injector_modules__', []) + list(modules)
         return f
     return wrapper
 

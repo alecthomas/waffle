@@ -34,21 +34,31 @@ def main(injector):
 
 ### Multi-command
 
-An application supporting multiple commands:
+An application supporting multiple commands. Each command has its own set of modules defined. To remain DRY, @modules calls can be stacked and as this example shows, it's easy to set a default set of modules on all commands.
 
 ```python
-from waffle.app import command, run
-from waffle.log import LoggingModule
+from waffle.flags import arg
+from waffle.app import command, modules, run
+from waffle.log import LoggingModule, LogLevel
+
+
+default_modules = modules(LoggingModule)
+
 
 @command
+@arg('--pidfile', help='Path to PID file.')
+@default_modules
 def start(injector):
-    pass
+    print injector.get(LogLevel)
+
 
 @command
+@default_modules
 def stop(injector):
     pass
 
-run(LoggingModule)
+
+run()
 ```
 
 `@main` and `run()` should be the last statements in the module.

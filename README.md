@@ -20,15 +20,13 @@ def main(injector):
 
 ### Injecting modules
 
-A slightly more complex example with injectable flags and some useful default logging:
+A slightly more complex example injecting the logging module:
 
 ```python
 from waffle import main
-from injector import Injector
-from waffle.flags import FlagsModule, expects_obj
 from waffle.log import LoggingModule
 
-@main
+@main(debug=True)
 @modules(LoggingModule)
 def main(injector):
     ...
@@ -40,6 +38,7 @@ An application supporting multiple commands:
 
 ```python
 from waffle.app import command, run
+from waffle.log import LoggingModule
 
 @command
 def start(injector):
@@ -49,7 +48,7 @@ def start(injector):
 def stop(injector):
     pass
 
-run()
+run(LoggingModule)
 ```
 
 `@main` and `run()` should be the last statements in the module.

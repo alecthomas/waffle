@@ -4,7 +4,9 @@ import flask
 from flask import Flask, Config, Request
 from flask.views import View
 from werkzeug.local import Local, LocalManager
-from injector import Module, Injector, SequenceKey, MappingKey, ScopeDecorator, Scope, InstanceProvider, provides, inject
+from injector import (Module, Injector, SequenceKey, MappingKey,
+                      ScopeDecorator, Scope, InstanceProvider, provides,
+                      inject, singleton)
 
 from waffle.flags import Flag, flag
 
@@ -15,6 +17,8 @@ __all__ = ['route', 'Controllers', 'RequestTeardown', 'FlaskModule']
 Controllers = SequenceKey('Controllers')
 RequestTeardown = SequenceKey('RequestTeardown')
 ErrorHandlers = MappingKey('ErrorHandlers')
+FlaskExtensions = SequenceKey('FlaskExtensions')
+FlaskConfiguration = MappingKey('FlaskConfiguration')
 
 
 flag('--static_root', help='Path to web server static resources.', metavar='PATH')
@@ -199,19 +203,26 @@ class FlaskModule(Module):
         binder.multibind(Controllers, to=[])
         binder.multibind(RequestTeardown, to=[])
         binder.multibind(ErrorHandlers, to={})
+        binder.multibind(FlaskExtensions, to=[])
+        binder.multibind(FlaskConfiguration, to={})
 
     @provides(Config)
+    @singleton
     @inject(app=Flask)
     def provides_flask_config(self, app):
         return app.config
 
     @provides(Flask)
+    @singleton
     @inject(static_root=Flag('static_root'), debug=Flag('debug'), injector=Injector,
-            controllers=Controllers, teardown=RequestTeardown, error_handlers=ErrorHandlers)
-    def provide_flask(self, static_root, debug, injector, controllers, teardown, error_handlers):
+            controllers=Controllers, teardown=RequestTeardown, error_handlers=ErrorHandlers,
+            extensions=FlaskExtensions, configuration=FlaskConfiguration)
+    def provide_flask(self, static_root, debug, injector, controllers,
+                      teardown, error_handlers, extensions, configuration):
         assert static_root, '--static_root not set, set a default in main() or run()'
         app = Flask('app', static_folder=static_root)
         app.debug = debug
+        app.config.update(configuration)
 
         # Request teardown callbacks
         for callback in teardown:
@@ -222,6 +233,10 @@ class FlaskModule(Module):
             app.errorhandler(error)(lambda e=None, c=handler: c())
 
         self._configure_controllers(injector, app, controllers)
+
+        for ext in extensions:
+            ext.init_app(app)
+
         return app
 
     def _configure_controllers(self, injector, app, controllers):

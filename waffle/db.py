@@ -2,7 +2,7 @@ import logging
 
 from injector import Module, inject, provides
 from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.declarative import AbstractConcreteBase, declarative_base, declared_attr
 from sqlalchemy import create_engine
 from sqlalchemy.orm.session import Session
 
@@ -17,7 +17,13 @@ flag('--database_uri', help='Database URI.', metavar='URI')
 Session = Session
 
 # Subclass models from this.
-Base = declarative_base()
+_Base = declarative_base()
+
+
+class Base(_Base, AbstractConcreteBase):
+    @declared_attr
+    def __tablename__(cls):
+        return cls.__name__.lower()
 
 
 class DatabaseModule(Module):

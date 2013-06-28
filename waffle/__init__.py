@@ -23,7 +23,7 @@ all_by_module = {
     'waffle.devel':         ['DebugConsoleContext', 'DevelModule'],
     'waffle.redis':         ['RedisModule'],
     'waffle.log':           ['LogLevel', 'LoggingModule'],
-    'waffle.web':           ['Controllers', 'RequestTeardown',
+    'waffle.web':           ['Controllers', 'Request', 'RequestTeardown',
                              'ErrorHandlers', 'FlaskExtensions',
                              'FlaskConfiguration', 'ControllersModule',
                              'controllers', 'InjectorView', 'request',
@@ -35,7 +35,7 @@ all_by_module = {
 }
 
 # modules that should be imported when accessed as attributes of waffle
-attribute_modules = frozenset(['exceptions', 'routing', 'script'])
+attribute_modules = frozenset([])
 
 
 object_origins = {}

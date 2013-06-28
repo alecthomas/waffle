@@ -1,5 +1,5 @@
 from argparse import HelpFormatter, SUPPRESS, OPTIONAL, ZERO_OR_MORE
-from argh import *  # Re-export everything from argh
+from argh import ArghParser, arg, dispatch, expects_obj, set_default_command, dispatch, add_commands
 from injector import Module, Key, singleton
 
 
@@ -32,8 +32,30 @@ class ArgumentDefaultsHelpFormatter(HelpFormatter):
 
 parser = ArghParser(fromfile_prefix_chars='@', formatter_class=ArgumentDefaultsHelpFormatter)
 
-# Add a new flag
-flag = parser.add_argument
+
+_flags = []
+
+
+def flag(*args, **kwargs):
+    """Register a global or command-specific flag.
+
+    If used as a function call at the global level, will register a global flag.
+
+        flag('--debug', help='Enable debug.', action='store_true')
+
+    If used as a decorator on a @command, will add a command-specific flag:
+
+        @flag('--root', help='Root directory.')
+    """
+    _flags.append((args, kwargs))
+
+    def apply(f):
+        args, kwargs = _flags.pop()
+        return arg(*args, **kwargs)(f)
+
+    return apply
+
+
 flag('--debug', help='Enable debug mode.', action='store_true')
 
 

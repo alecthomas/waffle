@@ -2,7 +2,7 @@ from functools import wraps
 
 from injector import Injector
 
-from waffle.flags import FlagsModule, parser, dispatch, add_commands, set_default_command, expects_obj
+from waffle.flags import FlagsModule, parser, dispatch, add_commands, set_default_command, expects_obj, _flags
 
 
 """Running the app.
@@ -44,6 +44,8 @@ def _create_injector(f):
 
 def run(**defaults):
     """Run the app, optionally setting some default command-line arguments."""
+    for args, kwargs in _flags:
+        parser.add_argument(*args, **kwargs)
     parser.set_defaults(**defaults)
     dispatch(parser)
 
@@ -80,6 +82,9 @@ def main(_f=None, **defaults):
         def main(injector):
             pass
     """
+    for args, kwargs in _flags:
+        parser.add_argument(*args, **kwargs)
+
     def wrapper(f):
         f = expects_obj(_create_injector(f))
         set_default_command(parser, f)

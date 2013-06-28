@@ -200,11 +200,11 @@ class FlaskModule(Module):
     def configure(self, binder):
         binder.bind_scope(RequestScope)
         binder.bind(Request, to=lambda: flask.request)
-        binder.multibind(Controllers, to=[])
-        binder.multibind(RequestTeardown, to=[])
-        binder.multibind(ErrorHandlers, to={})
-        binder.multibind(FlaskExtensions, to=[])
-        binder.multibind(FlaskConfiguration, to={})
+        binder.multibind(Controllers, to=[], scope=singleton)
+        binder.multibind(RequestTeardown, to=[], scope=singleton)
+        binder.multibind(ErrorHandlers, to={}, scope=singleton)
+        binder.multibind(FlaskExtensions, to=[], scope=singleton)
+        binder.multibind(FlaskConfiguration, to={}, scope=singleton)
 
     @provides(Config)
     @singleton

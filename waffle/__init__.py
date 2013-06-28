@@ -16,6 +16,7 @@ __version__ = '0.2.1'
 
 # import mapping to objects in other modules
 all_by_module = {
+    'waffle.common':        ['AppModules'],
     'waffle.app':           ['run', 'modules', 'command', 'main'],
     'waffle.db':            ['Session', 'Base', 'DatabaseModule'],
     'waffle.flags':         ['Flags', 'flag', 'parser', 'Flag',
@@ -23,7 +24,8 @@ all_by_module = {
     'waffle.devel':         ['DebugConsoleContext', 'DevelModule'],
     'waffle.redis':         ['RedisModule'],
     'waffle.log':           ['LogLevel', 'LoggingModule'],
-    'waffle.web':           ['Controllers', 'Request', 'RequestTeardown',
+    'waffle.web.common':    ['WebModules'],
+    'waffle.web.flask':     ['Controllers', 'Request', 'RequestTeardown',
                              'ErrorHandlers', 'FlaskExtensions',
                              'FlaskConfiguration', 'ControllersModule',
                              'controllers', 'InjectorView', 'request',

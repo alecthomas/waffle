@@ -1,7 +1,7 @@
 from injector import Module, inject, provides
 
 from waffle.db import Session
-from waffle.web import RequestTeardown
+from waffle.web.flask import RequestTeardown
 
 
 class DatabaseSessionModule(Module):

@@ -201,7 +201,7 @@ class FlaskModule(Module):
 
     def configure(self, binder):
         binder.bind_scope(RequestScope)
-        binder.bind(Request, to=lambda: flask.request)
+        binder.bind(Request, to=lambda: flask.request, scope=request)
         binder.multibind(Controllers, to=[], scope=singleton)
         binder.multibind(RequestTeardown, to=[], scope=singleton)
         binder.multibind(ErrorHandlers, to={}, scope=singleton)

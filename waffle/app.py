@@ -1,6 +1,6 @@
 from functools import wraps
 
-from injector import Injector
+from injector import Injector, SequenceKey
 
 from waffle.flags import FlagsModule, parser, dispatch, add_commands, set_default_command, expects_obj, _flags
 
@@ -33,18 +33,25 @@ There are two primary options:
 """
 
 
+AppStartup = SequenceKey('AppStartup')
+
+
 def _create_injector(f):
     @wraps(f)
     def wrapper(args):
         modules = [FlagsModule(args)] + getattr(f, '__injector_modules__', [])
         injector = Injector(modules)
+        injector.binder.multibind(AppStartup, to=[])
+        for startup in injector.get(AppStartup):
+            startup()
         return f(injector)
     return wrapper
 
 
 def run(**defaults):
     """Run the app, optionally setting some default command-line arguments."""
-    for args, kwargs in _flags:
+    while _flags:
+        args, kwargs = _flags.pop(0)
         parser.add_argument(*args, **kwargs)
     parser.set_defaults(**defaults)
     dispatch(parser)

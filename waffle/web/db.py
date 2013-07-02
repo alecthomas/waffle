@@ -10,4 +10,11 @@ class DatabaseSessionModule(Module):
     @provides(RequestTeardown)
     @inject(session=Session)
     def provide_db_request_teardown(self, session):
-        return [session.close]
+        def cleanup(exception):
+            if exception:
+                session.rollback()
+            else:
+                session.commit()
+            session.close()
+
+        return [cleanup]

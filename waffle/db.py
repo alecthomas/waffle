@@ -43,8 +43,8 @@ class DatabaseModule(Module):
             logging.getLogger('sqlalchemy.engine').setLevel(log_level)
         logging.info('Connecting to %s', database_uri)
         engine = create_engine(database_uri, convert_unicode=True)
-        session = scoped_session(sessionmaker(autocommit=True,
-                                              autoflush=True,
+        session = scoped_session(sessionmaker(autocommit=False,
+                                              autoflush=False,
                                               bind=engine))
         Base.query = session.query_property()
         Base.metadata.create_all(bind=engine)

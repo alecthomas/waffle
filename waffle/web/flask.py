@@ -228,7 +228,7 @@ class FlaskModule(Module):
 
         # Request teardown callbacks
         for callback in teardown:
-            app.teardown_request(lambda e=None, c=callback: c())
+            app.teardown_request(lambda exception=None, c=callback: c(exception))
 
         # Error handlers
         for error, handler in error_handlers.iteritems():

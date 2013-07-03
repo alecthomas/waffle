@@ -104,10 +104,14 @@ class RequestScope(Scope):
 request = ScopeDecorator(RequestScope)
 
 
+_all_routes = []
+
+
 def route(*args, **kwargs):
     """Decorate a function as a view endpoint."""
     def _wrap(f):
         f.__view__ = (args, kwargs)
+        _all_routes.append(f)
         return f
     return _wrap
 
@@ -186,6 +190,13 @@ class decorator(object):
             return f
 
         return wrap
+
+
+class AllImportedControllersModule(Module):
+    """Provide all imported flask routes."""
+
+    def configure(self, binder):
+        binder.multibind(Controllers, to=_all_routes, scope=singleton)
 
 
 class FlaskModule(Module):

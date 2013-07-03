@@ -118,11 +118,11 @@ def main(injector):
 
 ## Available modules
 
-### waffle.common.AppModules
+### waffle.common.AppModules (composite)
 
 Installs `waffle.db.DatabaseModule` and `waffle.db.LoggingModule`.
 
-### waffle.web.common.WebModules
+### waffle.web.common.WebModules (composite)
 
 Installs `waffle.web.flask.FlaskModule`, `waffle.web.db.DatabaseSessionModule`, and `waffle.web.template.TemplateModule`.
 
@@ -165,6 +165,14 @@ Use like so:
 ```python
 injector.get(BackdoorServer).start()
 ```
+
+### waffle.web.flask.FlaskModule
+
+Exposes Flask through an injector module. This is the core module for providing web application support.
+
+### waffle.web.flask.AllImportedControllersModule
+
+Automatically binds all imported `@route` endpoints. This obviates the need for the `@controllers` decorator on entry points.
 
 ### waffle.web.db.DatabaseSessionModule
 

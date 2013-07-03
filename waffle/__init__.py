@@ -30,7 +30,7 @@ all_by_module = {
                              'FlaskConfiguration', 'ControllersModule',
                              'controllers', 'InjectorView', 'request',
                              'RequestScope', 'route', 'decorator',
-                             'FlaskModule'],
+                             'FlaskModule', 'AllImportedControllersModule'],
     'waffle.web.db':        ['DatabaseSessionModule'],
     'waffle.web.template':  ['TemplateContext', 'Loader', 'Renderer',
                              'Template', 'TemplateModule'],

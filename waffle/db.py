@@ -12,7 +12,6 @@ from waffle.log import LogLevel
 
 
 flag('--database_uri', help='Database URI.', metavar='URI')
-flag('--database_logging', help='Log database operations.', action='store_true')
 
 
 # Re-exported for injector binding.
@@ -41,11 +40,9 @@ class DatabaseModule(Module):
 
     @singleton
     @provides(DatabaseEngine)
-    @inject(database_uri=Flag('database_uri'), database_logging=Flag('database_logging'), log_level=LogLevel)
-    def provide_db_engine(self, database_uri, database_logging, log_level):
+    @inject(database_uri=Flag('database_uri'))
+    def provide_db_engine(self, database_uri):
         assert database_uri, '--database_uri not set, set a default in main() or run()'
-        if database_logging:
-            logging.getLogger('sqlalchemy.engine').setLevel(log_level)
         logging.info('Connecting to %s', database_uri)
         engine = create_engine(database_uri, convert_unicode=True)
         return engine

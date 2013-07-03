@@ -16,6 +16,7 @@ LogLevel = Key('LogLevel')
 flag('--log_to_stdout', action='store_true', help='Log to stdout.')
 flag('--log_format', help='Python logging format.', default='%(levelname)-8s %(message)s', metavar='FORMAT')
 flag('--log_level', help='Minimum log level.', default='warning', choices=['debug', 'info', 'warning', 'error', 'critical'], metavar='LEVEL')
+flag('-L', '--logger_levels', help='Set a set of logger levels.', metavar='LOGGER=LEVEL ...', action='append', default=[], type=str)
 
 
 class LoggingModule(Module):
@@ -60,5 +61,9 @@ class LoggingModule(Module):
 
         root.addHandler(stdout)
         root.setLevel(level)
+
+        for levels in flags.logger_levels:
+            name, level = levels.split('=')
+            logging.getLogger(name).setLevel(getattr(logging, level.upper()))
 
         binder.bind(LogLevel, to=level)

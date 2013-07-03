@@ -7,6 +7,8 @@ The general approach used by the Injector modules in Waffle is to use flags to c
 For example, `waffle.redis.RedisModule` relies on the flag `--redis_server` to connect to a Redis server, which defaults to `localhost:6379:0`. To configure and use the Redis module you might do something like this:
 
 ```python
+from waffle import main
+
 @main(redis_server='redis.domain.com:6379:1')
 def main(injector):
     redis = injector.get(Redis)
@@ -36,8 +38,7 @@ def main(injector):
 A slightly more complex example injecting the logging module:
 
 ```python
-from waffle import main
-from waffle.log import LoggingModule
+from waffle import LoggingModule, main
 
 @main(debug=True)
 @modules(LoggingModule)
@@ -50,16 +51,14 @@ def main(injector):
 An application supporting multiple commands. Each command has its own set of modules defined. To remain DRY, @modules calls can be stacked and as this example shows, it's easy to set a default set of modules on all commands.
 
 ```python
-from waffle.flags import arg
-from waffle.app import command, modules, run
-from waffle.log import LoggingModule, LogLevel
+from waffle import LoggingModule, LogLevel, flag, command, modules, run
 
 
 default_modules = modules(LoggingModule)
 
 
 @command
-@arg('--pidfile', help='Path to PID file.')
+@flag('--pidfile', help='Path to PID file.')
 @default_modules
 def start(injector):
     print injector.get(LogLevel)
@@ -71,7 +70,7 @@ def stop(injector):
     pass
 
 
-run()
+run(log_level='warning')
 ```
 
 `@main` and `run()` should be the last statements in the module.
@@ -86,18 +85,12 @@ from flask import Flask
 from injector import inject
 from sqlalchemy import Column, String
 
-from waffle import main, modules
-from waffle.devel import DevelModule
-from waffle.log import LoggingModule
-from waffle.db import DatabaseModule, Base
-from waffle.web import FlaskModule, route, controllers
-from waffle.web.template import TemplateModule, Template
-from waffle.web.db import DatabaseSessionModule
+from waffle import DevelModule, LoggingModule, DatabaseModule, Base, \
+    FlaskModule, controllers, TemplateModule, Template, \
+    DatabaseSessionModule, route, main, modules
 
 
 class KeyValue(Base):
-    __tablename__ = 'key_value'
-
     key = Column(String, primary_key=True)
     value = Column(String)
 
@@ -136,8 +129,7 @@ Binds a configured SQLAlchemy `Session` to the injector.
 ```python
 from sqlalchemy.orm import String
 from sqlalchemy.orm.session import Session
-from waffle import main, modules
-from waffle.db import DatabaseModule, Base
+from waffle import DatabaseModule, Base, main, modules
 
 
 class KeyValue(Base):
@@ -194,4 +186,12 @@ def index(template):
 
 ### waffle.redis.RedisModule
 
-Provides a Redis client configured by flags.
+Provides a Redis client configured by flags:
+
+```python
+from redis import Redis
+
+@inject(redis=Redis)
+def get(redis):
+    return redis.get('some_key')
+```

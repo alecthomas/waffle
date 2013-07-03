@@ -18,7 +18,7 @@ __version__ = '0.2.1'
 all_by_module = {
     'waffle.common':        ['AppModules'],
     'waffle.app':           ['run', 'modules', 'command', 'main'],
-    'waffle.db':            ['Session', 'Base', 'DatabaseModule'],
+    'waffle.db':            ['DatabaseSession', 'Base', 'DatabaseModule'],
     'waffle.flags':         ['Flags', 'flag', 'parser', 'Flag',
                              'FlagsModule'],
     'waffle.devel':         ['DebugConsoleContext', 'DevelModule'],

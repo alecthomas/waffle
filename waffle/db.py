@@ -26,6 +26,10 @@ class Base(_Base, AbstractConcreteBase):
     def __tablename__(cls):
         return cls.__name__.lower()
 
+    @property
+    def query_self(self):
+        return self.query.filter(self.__class__.id == self.id)
+
 
 class DatabaseModule(Module):
     """Configure and initialize the ORM.

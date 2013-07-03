@@ -15,6 +15,6 @@ class DatabaseSessionModule(Module):
                 session.rollback()
             else:
                 session.commit()
-            session.close()
+            session.remove()
 
         return [cleanup]

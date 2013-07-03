@@ -85,9 +85,8 @@ from flask import Flask
 from injector import inject
 from sqlalchemy import Column, String
 
-from waffle import DevelModule, LoggingModule, DatabaseModule, Base, \
-    FlaskModule, controllers, TemplateModule, Template, \
-    DatabaseSessionModule, route, main, modules
+from waffle import AppModules, WebModules, Base, Template, \
+    controllers, route, main, modules
 
 
 class KeyValue(Base):
@@ -107,11 +106,10 @@ def foo(template):
     return template()
 
 
-@main(console_port=9999, database_uri='sqlite:///:memory:',
-      static_root='./static/', template_root='./templates/')
+@main(database_uri='sqlite:///:memory:', static_root='./static/',
+      template_root='./templates/')
 @controllers(index, foo)
-@modules(DevelModule, LoggingModule, DatabaseModule, DatabaseSessionModule,
-         FlaskModule, TemplateModule)
+@modules(AppModules, WebModules)
 def main(injector):
     app = injector.get(Flask)
     app.run()
@@ -119,6 +117,14 @@ def main(injector):
 ```
 
 ## Available modules
+
+### waffle.common.AppModules
+
+Installs `waffle.db.DatabaseModule` and `waffle.db.LoggingModule`.
+
+### waffle.web.common.WebModules
+
+Installs `waffle.web.flask.FlaskModule`, `waffle.web.db.DatabaseSessionModule`, and `waffle.web.template.TemplateModule`.
 
 ### waffle.db.DatabaseModule
 

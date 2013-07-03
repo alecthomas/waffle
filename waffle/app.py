@@ -44,7 +44,7 @@ def _create_injector(f):
         injector.binder.multibind(AppStartup, to=[])
         for startup in injector.get(AppStartup):
             startup()
-        return injector.call_with_injection(f, None, (injector,))
+        return injector.call_with_injection(f, None)
     return wrapper
 
 

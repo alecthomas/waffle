@@ -82,3 +82,8 @@ class TemplateModule(Module):
     @inject(loader=Loader)
     def provides_template_environment(self, loader):
         return Environment(loader=loader)
+
+
+def template(filename):
+    """A decorator that injects a "template" argument."""
+    return inject(template=Template(filename))

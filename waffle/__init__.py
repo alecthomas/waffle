@@ -33,7 +33,7 @@ all_by_module = {
                              'FlaskModule', 'AllImportedControllersModule'],
     'waffle.web.db':        ['DatabaseSessionModule'],
     'waffle.web.template':  ['TemplateContext', 'Loader', 'Renderer',
-                             'Template', 'TemplateModule'],
+                             'Template', 'TemplateModule', 'template'],
 }
 
 # modules that should be imported when accessed as attributes of waffle

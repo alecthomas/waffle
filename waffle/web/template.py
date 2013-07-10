@@ -1,8 +1,15 @@
+from __future__ import absolute_import
+
 import codecs
 import os
+from functools import partial
 
 from injector import Module, ParameterizedBuilder, MappingKey, inject, singleton, provides
 from jinja2 import Environment, BaseLoader, TemplateNotFound
+try:
+    from flask import url_for
+except ImportError:
+    url_for = None
 
 from waffle.flags import Flag, flag
 
@@ -75,6 +82,8 @@ class TemplateModule(Module):
     def configure(self, binder, debug):
         binder.multibind(TemplateContext, to={
             'debug': debug,
+            'url_for': url_for,
+            'static': lambda filename: url_for('static', filename=filename),
         })
 
     @singleton

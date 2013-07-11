@@ -27,6 +27,7 @@ class Base(_Base, AbstractConcreteBase):
 
     def save(self):
         self.query.session.add(self)
+        return self
 
     @property
     def query_self(self):

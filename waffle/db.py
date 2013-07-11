@@ -8,7 +8,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm.session import Session as DatabaseSession
 
 from waffle.flags import Flag, flag
-from waffle.log import LogLevel
 
 
 flag('--database_uri', help='Database URI.', metavar='URI')

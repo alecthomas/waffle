@@ -33,6 +33,9 @@ This system does not rely on Flask.
 # :class:`TemplateModule` for an example of how to extend the context.
 TemplateContext = MappingKey('TemplateContext')
 
+# A binding key for contributing filters to templates.
+TemplateFilters = MappingKey('TemplateFilters')
+
 
 flag('--template_root', metavar='DIR',
     help='Root directory for HTML templates.')
@@ -85,12 +88,15 @@ class TemplateModule(Module):
             'url_for': url_for,
             'static': lambda filename: url_for('static', filename=filename),
         })
+        binder.multibind(TemplateFilters, to={})
 
     @singleton
     @provides(Environment)
-    @inject(loader=Loader)
-    def provides_template_environment(self, loader):
-        return Environment(loader=loader)
+    @inject(loader=Loader, debug=Flag('debug'), filters=TemplateFilters)
+    def provides_template_environment(self, loader, debug, filters):
+        env = Environment(loader=loader, autoescape=True, auto_reload=debug)
+        env.filters.update(filters)
+        return env
 
 
 def template(filename):

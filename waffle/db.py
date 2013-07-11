@@ -25,6 +25,9 @@ class Base(_Base, AbstractConcreteBase):
     def __tablename__(cls):
         return cls.__name__.lower()
 
+    def save(self):
+        self.query.session.add(self)
+
     @property
     def query_self(self):
         return self.query.filter(self.__class__.id == self.id)

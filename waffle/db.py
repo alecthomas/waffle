@@ -34,21 +34,24 @@ class _Base(object):
 
     def __repr__(self):
         def reprs(cls):
+            attrs = {}
             for col in cls.__table__.c:
-                yield col.name, repr(getattr(self, col.name))
-            mapper_args = getattr(cls, '__mapper_args__', None)
-            if mapper_args:
-                parent = mapper_args.get('inherits', None)
-                if parent:
-                    for n in reprs(parent):
-                        yield n
+                attrs[col.name] = repr(getattr(self, col.name))
+            mapper_args = getattr(cls, '__mapper_args__', {})
+            inherits = mapper_args.get('inherits', None)
+            if inherits:
+                attrs.update(reprs(inherits))
+            polymorphic_on = mapper_args.get('polymorphic_on', None)
+            if polymorphic_on is not None:
+                del attrs[polymorphic_on.name]
+            return attrs
 
         def format(attrs):
             for key, value in sorted(attrs.items()):
                 yield '%s=%s' % (key, value)
 
         cls_name = type(self).__name__
-        return '%s(%s)' % (cls_name, ', '.join(format(dict(reprs(self)))))
+        return '%s(%s)' % (cls_name, ', '.join(format(reprs(self))))
 
 
 Base = declarative_base(cls=_Base)

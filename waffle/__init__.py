@@ -18,7 +18,8 @@ __version__ = '0.2.1'
 all_by_module = {
     'waffle.common':        ['AppModules'],
     'waffle.app':           ['run', 'modules', 'command', 'main'],
-    'waffle.db':            ['DatabaseSession', 'Base', 'DatabaseModule', 'DatabaseEngine'],
+    'waffle.db':            ['DatabaseSession', 'Base', 'DatabaseModule',
+                             'DatabaseEngine', 'transaction'],
     'waffle.flags':         ['Flags', 'flag', 'parser', 'Flag',
                              'FlagsModule'],
     'waffle.devel':         ['DebugConsoleContext', 'DevelModule'],
@@ -26,7 +27,7 @@ all_by_module = {
     'waffle.log':           ['LogLevel', 'LoggingModule'],
     'waffle.web.common':    ['WebModules'],
     'waffle.web.flask':     ['Controllers', 'Request', 'RequestTeardown',
-                             'ErrorHandlers', 'FlaskExtensions',
+                             'ErrorHandlers', 'FlaskExtensions', 'BeforeRequest',
                              'FlaskConfiguration', 'ControllersModule',
                              'controllers', 'InjectorView', 'request',
                              'RequestScope', 'route', 'decorator',

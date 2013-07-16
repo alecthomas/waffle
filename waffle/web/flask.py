@@ -13,10 +13,14 @@ from injector import (Module, Injector, SequenceKey, MappingKey,
 from waffle.flags import Flag, flag
 
 
-__all__ = ['route', 'Controllers', 'RequestTeardown', 'FlaskModule']
+__all__ = [
+    'route', 'Controllers', 'BeforeRequest', 'RequestTeardown',
+    'FlaskModule', 'request', 'RequestScope',
+]
 
 
 Controllers = SequenceKey('Controllers')
+BeforeRequest = SequenceKey('BeforeRequest')
 RequestTeardown = SequenceKey('RequestTeardown')
 ErrorHandlers = MappingKey('ErrorHandlers')
 FlaskExtensions = SequenceKey('FlaskExtensions')
@@ -214,6 +218,7 @@ class FlaskModule(Module):
         binder.bind_scope(RequestScope)
         binder.bind(Request, to=lambda: flask.request, scope=request)
         binder.multibind(Controllers, to=[], scope=singleton)
+        binder.multibind(BeforeRequest, to=[], scope=singleton)
         binder.multibind(RequestTeardown, to=[], scope=singleton)
         binder.multibind(ErrorHandlers, to={}, scope=singleton)
         binder.multibind(FlaskExtensions, to=[], scope=singleton)
@@ -228,14 +233,19 @@ class FlaskModule(Module):
     @provides(Flask)
     @singleton
     @inject(static_root=Flag('static_root'), debug=Flag('debug'), injector=Injector,
-            controllers=Controllers, teardown=RequestTeardown, error_handlers=ErrorHandlers,
-            extensions=FlaskExtensions, configuration=FlaskConfiguration)
+            controllers=Controllers, teardown=RequestTeardown, before=BeforeRequest,
+            error_handlers=ErrorHandlers, extensions=FlaskExtensions,
+            configuration=FlaskConfiguration)
     def provide_flask(self, static_root, debug, injector, controllers,
-                      teardown, error_handlers, extensions, configuration):
+                      teardown, before, error_handlers, extensions, configuration):
         assert static_root, '--static_root not set, set a default in main() or run()'
         app = Flask('app', static_folder=static_root)
         app.debug = debug
         app.config.update(configuration)
+
+        # Before request callbacks
+        for callback in before:
+            app.before_request(lambda exception=None, c=callback: c(exception))
 
         # Request teardown callbacks
         for callback in teardown:

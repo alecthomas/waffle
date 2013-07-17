@@ -34,6 +34,7 @@ setup(
         'setuptools >= 0.6b1',
         'injector',
         'argh',
+        'flask-seasurf',
     ],
     cmdclass={'test': PyTest},
     )

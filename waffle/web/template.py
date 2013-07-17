@@ -5,10 +5,7 @@ import os
 
 from injector import Module, ParameterizedBuilder, MappingKey, inject, singleton, provides
 from jinja2 import Environment, BaseLoader, TemplateNotFound
-try:
-    from flask import url_for
-except ImportError:
-    url_for = None
+from flask import Flask, url_for
 
 from waffle.flags import Flag, flag
 
@@ -89,12 +86,13 @@ class TemplateModule(Module):
         })
         binder.multibind(TemplateFilters, to={})
 
-    @singleton
-    @provides(Environment)
-    @inject(loader=Loader, debug=Flag('debug'), filters=TemplateFilters)
-    def provides_template_environment(self, loader, debug, filters):
+    @provides(Environment, scope=singleton)
+    @inject(app=Flask, loader=Loader, debug=Flag('debug'), filters=TemplateFilters)
+    def provides_template_environment(self, app, loader, debug, filters):
         env = Environment(loader=loader, autoescape=True, auto_reload=debug)
+        env.filters.update(app.jinja_env.filters)
         env.filters.update(filters)
+        env.globals.update(app.jinja_env.globals)
         return env
 
 

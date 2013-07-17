@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import inspect
+import logging
 
 import flask
 from flask import Flask, Config, Request
@@ -28,6 +29,9 @@ FlaskConfiguration = MappingKey('FlaskConfiguration')
 
 
 flag('--static_root', help='Path to web server static resources.', metavar='PATH')
+
+
+log = logging.getLogger('waffle.web.flask')
 
 
 class ControllersModule(Module):
@@ -245,7 +249,7 @@ class FlaskModule(Module):
 
         # Before request callbacks
         for callback in before:
-            app.before_request(lambda exception=None, c=callback: c(exception))
+            app.before_request(lambda c=callback: c())
 
         # Request teardown callbacks
         for callback in teardown:
@@ -258,6 +262,7 @@ class FlaskModule(Module):
         self._configure_controllers(injector, app, controllers)
 
         for ext in extensions:
+            log.debug('Initializing Flask extension %r.init_app(%r)', ext, app)
             ext.init_app(app)
 
         return app

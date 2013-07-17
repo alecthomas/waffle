@@ -32,6 +32,7 @@ all_by_module = {
                              'controllers', 'InjectorView', 'request',
                              'RequestScope', 'route', 'decorator',
                              'FlaskModule', 'AllImportedControllersModule'],
+    'waffle.web.csrf':      ['CsrfModule', 'csrf_exempt'],
     'waffle.web.db':        ['DatabaseSessionModule'],
     'waffle.web.template':  ['TemplateContext', 'TemplateFilters', 'Loader', 'Renderer',
                              'Template', 'TemplateModule', 'template'],

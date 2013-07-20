@@ -186,6 +186,9 @@ def session_from(thing):
     if isinstance(thing, Base) or type(thing) is type:
         return thing.query.session
 
+    if hasattr(thing, '_session'):
+        return thing._session
+
     return None
 
 
@@ -217,7 +220,7 @@ def transaction(thing):
 
     @wraps(thing)
     def wrapper(self, *args, **kwargs):
-        with self._session:
+        with session_from(self):
             return thing(self, *args, **kwargs)
 
     return wrapper

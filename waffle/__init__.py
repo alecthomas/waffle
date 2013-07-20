@@ -19,7 +19,7 @@ all_by_module = {
     'waffle.common':        ['AppModules'],
     'waffle.app':           ['run', 'modules', 'command', 'main'],
     'waffle.db':            ['DatabaseSession', 'Base', 'DatabaseModule',
-                             'DatabaseEngine', 'transaction'],
+                             'DatabaseEngine', 'transaction', 'session_from'],
     'waffle.flags':         ['Flags', 'flag', 'parser', 'Flag',
                              'FlagsModule'],
     'waffle.devel':         ['DebugConsoleContext', 'DevelModule'],

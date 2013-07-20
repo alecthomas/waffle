@@ -80,9 +80,10 @@ class TestDatabaseSessionManager(object):
             assert event.is_set()
 
     def test_nested_rollback(self):
-        with pytest.raises(ValueError), self.session:
-            User(name='bob').save()
+        with pytest.raises(ValueError):
             with self.session:
-                raise ValueError
+                User(name='bob').save()
+                with self.session:
+                    raise ValueError
 
         assert not self.session._registry()._depth

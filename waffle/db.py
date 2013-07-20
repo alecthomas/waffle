@@ -177,10 +177,22 @@ class DatabaseModule(Module):
         return session
 
 
+def session_from(thing):
+    """Get session from an object."""
+
+    if isinstance(thing, (ExplicitSession, ExplicitSessionManager)):
+        return thing
+
+    if isinstance(thing, Base) or type(thing) is type:
+        return thing.query.session
+
+    return None
+
+
 def transaction(thing):
     """A general-purpose transaction helper.
 
-    Can be used with a session-like object:
+    Can be used with a session-like object (although this is redundant):
 
         with transaction(session):
             ...
@@ -199,11 +211,9 @@ def transaction(thing):
         def method(self, ...):
             ...
     """
-    if isinstance(thing, (ExplicitSession, ExplicitSessionManager)):
-        return thing
-
-    if isinstance(thing, Base) or type(thing) is type:
-        return thing.query.session
+    session = session_from(thing)
+    if session is not None:
+        return session
 
     @wraps(thing)
     def wrapper(self, *args, **kwargs):

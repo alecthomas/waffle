@@ -21,9 +21,9 @@ flag('--database_pool_size', help='Database connection pool size.', metavar='N',
 DatabaseSession = Session
 
 
-class NestedSession(Session):
+class ExplicitSession(Session):
     def __init__(self, *args, **kwargs):
-        super(NestedSession, self).__init__(*args, **kwargs)
+        super(ExplicitSession, self).__init__(*args, **kwargs)
         self._depth = 0
 
     def __enter__(self):
@@ -40,14 +40,15 @@ class NestedSession(Session):
         self._depth -= 1
 
 
-class SessionManager(object):
-    """A thread-safe session manager.
+class ExplicitSessionManager(object):
+    """A thread-safe explicit session manager.
 
     This provides the following semantics:
 
     - Sessions are started via a contextmanager.
     - Entering a Session context opens a transaction and returns a session recursively.
     - Provides a query_property that can only be used within a transaction.
+    - A transaction can *only* be opened by a context manager.
     """
 
     def __init__(self, session_factory):
@@ -78,7 +79,7 @@ class SessionManager(object):
                     mapper = class_mapper(owner)
                     if mapper:
                         if not self._registry.has() or not self._registry()._depth:
-                            raise InvalidRequestError('Cannot access %s.query outside transaction' % owner.__name__)
+                            raise InvalidRequestError('Cannot access %s.query outside transaction, use with session: ...' % owner.__name__)
                         if query_cls:
                             # custom query class
                             return query_cls(mapper, session=self._registry())
@@ -167,10 +168,10 @@ class DatabaseModule(Module):
     @provides(DatabaseSession, scope=singleton)
     @inject(engine=DatabaseEngine)
     def provide_db_session(self, engine):
-        session = SessionManager(sessionmaker(autocommit=True,
+        session = ExplicitSessionManager(sessionmaker(autocommit=True,
                                               autoflush=True,
                                               bind=engine,
-                                              class_=NestedSession))
+                                              class_=ExplicitSession))
         Base.query = session.query_property()
         Base.metadata.create_all(bind=engine)
         return session
@@ -198,7 +199,7 @@ def transaction(thing):
         def method(self, ...):
             ...
     """
-    if isinstance(thing, (NestedSession, SessionManager)):
+    if isinstance(thing, (ExplicitSession, ExplicitSessionManager)):
         return thing
 
     if isinstance(thing, Base) or type(thing) is type:

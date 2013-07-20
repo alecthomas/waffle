@@ -10,7 +10,7 @@ class DatabaseSessionModule(Module):
     @provides(RequestTeardown)
     @inject(session=DatabaseSession)
     def provide_db_request_teardown(self, session):
-        def cleanup(exception):
+        def cleanup_db_session(exception):
             session.remove()
 
-        return [cleanup]
+        return [cleanup_db_session]

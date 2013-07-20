@@ -64,6 +64,8 @@ class TestDatabaseSessionManager(object):
             User(name='bob').save()
         with self.session:
             User(name='bob').save()
+            self.session.flush()
+            assert User.query.count() == 1
         event.set()
         return 'ok'
 

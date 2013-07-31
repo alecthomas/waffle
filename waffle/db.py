@@ -55,6 +55,9 @@ class ExplicitSessionManager(object):
         self._session_factory = session_factory
         self._registry = ThreadLocalRegistry(session_factory)
 
+    def configure(self, **config):
+        self._session_factory.configure(**config)
+
     def __enter__(self):
         if not self._registry.has():
             sess = self._session_factory()
@@ -168,10 +171,8 @@ class DatabaseModule(Module):
     @provides(DatabaseSession, scope=singleton)
     @inject(engine=DatabaseEngine)
     def provide_db_session(self, engine):
-        session = ExplicitSessionManager(sessionmaker(autocommit=True,
-                                              autoflush=True,
-                                              bind=engine,
-                                              class_=ExplicitSession))
+        factory = sessionmaker(autocommit=True, autoflush=True, bind=engine, class_=ExplicitSession)
+        session = ExplicitSessionManager(factory)
         Base.query = session.query_property()
         Base.metadata.create_all(bind=engine)
         return session

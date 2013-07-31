@@ -262,8 +262,10 @@ class FlaskModule(Module):
         self._configure_controllers(injector, app, controllers)
 
         for ext in extensions:
-            log.debug('Initializing Flask extension %r.init_app(%r)', ext, app)
-            ext.init_app(app)
+            if hasattr(ext, 'init_app'):
+                ext = ext.init_app
+            log.debug('Initializing Flask extension %r(%r)', ext, app)
+            ext(app)
 
         return app
 

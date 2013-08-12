@@ -1,5 +1,3 @@
-import logging
-
 import gevent
 from injector import Module, MappingKey, inject, singleton, provides
 from gevent.backdoor import BackdoorServer
@@ -27,6 +25,5 @@ class DevelModule(Module):
     @provides(BackdoorServer)
     @inject(console_port=Flag('console_port'), debug_console_context=DebugConsoleContext)
     def provide_backdoor_server(self, console_port, debug_console_context):
-        logging.warning('Starting console server on telnet://127.0.0.1:%d', console_port)
         backdoor = BackdoorServer(('127.0.0.1', console_port), debug_console_context)
         return gevent.Greenlet(backdoor.serve_forever)

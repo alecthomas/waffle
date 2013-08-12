@@ -17,12 +17,13 @@ LOG_LEVELS = ['finest', 'finer', 'fine', 'debug', 'info', 'warning', 'error', 'c
 
 
 flag('--log_to_stdout', action='store_true', help='Log to stdout.')
-flag('--log_format', help='Python logging format.', default='%(name)s.%(levelname)s %(message)s', metavar='FORMAT')
+flag('--log_format', help='Python logging format.', default='%(name)30s.%(levelname)-7s %(message)s', metavar='FORMAT')
 flag('--log_level', help='Minimum log level.', default='warning', choices=LOG_LEVELS, metavar='LEVEL')
 flag('-L', '--logger_levels', help='Set a set of logger levels.', metavar='LOGGER=LEVEL ...', action='append', default=[], type=str)
 
 
 def _configure_logging():
+    """Add fine/finer/finest logging."""
     logging.FINE = 7
     logging.FINER = 5
     logging.FINEST = 1

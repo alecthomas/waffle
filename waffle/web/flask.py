@@ -14,6 +14,9 @@ from injector import (Module, Injector, SequenceKey, MappingKey,
 from waffle.flags import Flag, flag
 
 
+logger = logging.getLogger(__name__)
+
+
 __all__ = [
     'route', 'Controllers', 'BeforeRequest', 'RequestTeardown',
     'FlaskModule', 'request', 'RequestScope',
@@ -29,9 +32,6 @@ FlaskConfiguration = MappingKey('FlaskConfiguration')
 
 
 flag('--static_root', help='Path to web server static resources.', metavar='PATH')
-
-
-log = logging.getLogger('waffle.web.flask')
 
 
 class ControllersModule(Module):
@@ -78,7 +78,7 @@ class InjectorView(View):
             owner_key=handler.__module__,
             )
         try:
-            return self._handler(**dict(bindings, **kwargs))
+            return handler(**dict(bindings, **kwargs))
         finally:
             self._request_scope.reset()
 
@@ -115,9 +115,16 @@ request = ScopeDecorator(RequestScope)
 _all_routes = []
 
 
+def is_controller_method(m):
+    return inspect.ismethod(m) and hasattr(m, '__view__')
+
+
 def route(*args, **kwargs):
     """Decorate a function as a view endpoint."""
     def _wrap(f):
+        if inspect.isclass(f):
+            for _ in inspect.getmembers(f, is_controller_method):
+                _all_routes.pop()
         f.__view__ = (args, kwargs)
         _all_routes.append(f)
         return f
@@ -264,7 +271,7 @@ class FlaskModule(Module):
         for ext in extensions:
             if hasattr(ext, 'init_app'):
                 ext = ext.init_app
-            log.debug('Initializing Flask extension %r(%r)', ext, app)
+            logger.debug('Initializing Flask extension %r(%r)', ext, app)
             ext(app)
 
         return app
@@ -274,27 +281,38 @@ class FlaskModule(Module):
         # Generate controllers
         for controller in controllers:
             if inspect.isclass(controller):
-                self._reflect_controllers_from_class(controller, injector, app)
+                self._reflect_controllers_from_class(controller, injector, app, request_scope)
             else:
                 assert hasattr(controller, '__view__')
-                iview = InjectorView.as_view(controller.__name__, handler=controller, injector=injector, request_scope=request_scope)
-                iview = self._install_route(injector, app, controller, iview, *controller.__view__)
+                iview = InjectorView.as_view(
+                    controller.__name__,
+                    handler=controller,
+                    injector=injector,
+                    request_scope=request_scope)
+                self._install_route(injector, app, controller, iview, *controller.__view__)
 
-    def _reflect_controllers_from_class(self, cls, injector, app):
+    def _reflect_controllers_from_class(self, cls, injector, app, request_scope):
         class_view = getattr(cls, '__view__', None)
         assert class_view is None or len(class_view[0]) == 1, \
             'Path prefix is the only non-keyword argument allowed on class @controller for ' + str(cls)
         prefix = class_view[0][0] if class_view is not None else ''
         class_kwargs = class_view[1]
-        for name, method in inspect.getmembers(cls, lambda m: inspect.ismethod(m) and hasattr(m, '__view__')):
+        for name, method in inspect.getmembers(cls, is_controller_method):
             args, kwargs = method.__view__
             args = (prefix + args[0],) + args[1:]
             kwargs = dict(class_kwargs, **kwargs)
-            iview = InjectorView.as_view(name, handler=method, injector=injector, handler_class=cls)
+            iview = InjectorView.as_view(
+                name,
+                handler=method,
+                injector=injector,
+                handler_class=cls,
+                request_scope=request_scope,
+                )
             self._install_route(injector, app, method, iview, args, kwargs)
 
     def _install_route(self, injector, app, controller, iview, args, kwargs):
         if hasattr(controller, '__decorators__'):
             for state in controller.__decorators__:
                 iview = state.apply(injector, iview)
+        logger.finest('Installing route: %r %r -> %r', args, kwargs, iview)
         app.add_url_rule(*args, view_func=iview, **kwargs)

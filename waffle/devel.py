@@ -5,7 +5,7 @@ from gevent.backdoor import BackdoorServer
 from waffle.flags import Flag, flag
 
 
-flag('--console_port', help='Port for debugging console.', metavar='PORT', default=8001)
+flag('--console_port', help='Port for debugging console.', metavar='PORT', default=8001, type=int)
 
 
 DebugConsoleContext = MappingKey('DebugConsoleContext')

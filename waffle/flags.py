@@ -95,3 +95,14 @@ class FlagsModule(Module):
             if option.dest not in ('help', '==SUPPRESS=='):
                 value = getattr(self.args, option.dest, option.default)
                 binder.bind(Flag(option.dest), to=lambda v=value: v, scope=singleton)
+
+
+def _apply_flags():
+    while _flags:
+        args, kwargs = _flags.pop(0)
+        parser.add_argument(*args, **kwargs)
+
+
+def set_flag_defaults(**defaults):
+    _apply_flags()
+    parser.set_defaults(**defaults)

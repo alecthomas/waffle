@@ -29,7 +29,7 @@ Waffle provides:
 from waffle import main
 
 @main
-def main(injector):
+def main():
     print 'Hello world'
 ```
 
@@ -42,7 +42,7 @@ from waffle import LoggingModule, main
 
 @main(debug=True)
 @modules(LoggingModule)
-def main(injector):
+def main():
     ...
 ```
 
@@ -52,6 +52,7 @@ An application supporting multiple commands. Each command has its own set of mod
 
 ```python
 from waffle import LoggingModule, LogLevel, flag, command, modules, run
+from injector import Injector
 
 
 default_modules = modules(LoggingModule)
@@ -60,13 +61,14 @@ default_modules = modules(LoggingModule)
 @command
 @flag('--pidfile', help='Path to PID file.')
 @default_modules
+@inject(injector=Injector)
 def start(injector):
     print injector.get(LogLevel)
 
 
 @command
 @default_modules
-def stop(injector):
+def stop():
     pass
 
 
@@ -81,38 +83,50 @@ This example also shows how to set defaults for flags, by passing the flags as k
 
 
 ```python
-from flask import Flask
 from injector import inject
 from sqlalchemy import Column, String
 
-from waffle import AppModules, WebModules, Base, Template, \
-    controllers, route, main, modules
+from waffle import AppModules, WebModules, \
+    Model, WebApplication, routes, main, modules, route, \
+    transaction, csrf_exempt
 
 
-class KeyValue(Base):
+class KeyValue(Model):
     key = Column(String, primary_key=True)
     value = Column(String)
 
 
 @route('/')
-@inject(template=Template('index.html'))
-def index(template):
-    return template()
+@transaction
+def index():
+    return [(kv.key, kv.value) for kv in KeyValue.query.all()]
 
 
-@route('/foo')
-@inject(template=Template('foo.html'))
-def foo(template):
-    return template()
+@route('/<key>')
+@transaction
+@csrf_exempt
+def get(request, key):
+    kv = KeyValue.query.filter_by(key=key).all()
+    if kv:
+        kv = kv[0]
+    if request.method == 'POST':
+        if kv:
+            kv.value = request.data
+        else:
+            kv = KeyValue(key=key, value=request.data)
+        kv.save()
+        return {'status': 'OK'}
+
+    return {'key': kv.key, 'value': kv.value}
 
 
 @main(database_uri='sqlite:///:memory:', static_root='./static/',
       template_root='./templates/')
-@controllers(index, foo)
 @modules(AppModules, WebModules)
-def main(injector):
-    app = injector.get(Flask)
-    app.run()
+@routes(index, get)
+@inject(app=WebApplication)
+def main(app):
+    app.serve(port=8081, use_reloader=False)
 
 ```
 
@@ -124,7 +138,7 @@ Installs `waffle.db.DatabaseModule` and `waffle.db.LoggingModule`.
 
 ### waffle.web.common.WebModules (composite)
 
-Installs `waffle.web.flask.FlaskModule`, `waffle.web.db.DatabaseSessionModule`, and `waffle.web.template.TemplateModule`.
+Installs `waffle.web.clastic.WebModule`, `waffle.web.db.DatabaseSessionModule`, `waffle.web.template.TemplateModule` and `waffle.web.csrf.CsrfModule`.
 
 ### waffle.db.DatabaseModule
 
@@ -166,17 +180,17 @@ Use like so:
 injector.get(BackdoorServer).start()
 ```
 
-### waffle.web.flask.FlaskModule
+### waffle.web.clastic.WebModule
 
-Exposes Flask through an injector module. This is the core module for providing web application support.
+Integrates [Clastic](https://github.com/mahmoud/clastic) through an injector module. This is the core module for providing web application support.
 
-### waffle.web.flask.AllImportedControllersModule
+### waffle.web.clastic.AllImportedRoutesModule
 
 Automatically binds all imported `@route` endpoints. This obviates the need for the `@controllers` decorator on entry points.
 
 ### waffle.web.db.DatabaseSessionModule
 
-A module that manages DB session lifecycle in Flask requests. This basically resets the session at the end of each request.
+A module that manages DB session lifecycle in HTTP requests. This basically resets the session at the end of each request.
 
 ### waffle.web.template.TemplateModule
 
@@ -190,13 +204,9 @@ binder.multibind(TemplateContext, to={
 })
 ```
 
-To inject a compiled template:
+### waffle.web.csrf.CsrfModule
 
-```python
-@inject(template=Template('index.html'))
-def index(template):
-    return template.render()
-```
+Enable CSRF support in templates.
 
 ### waffle.redis.RedisModule
 

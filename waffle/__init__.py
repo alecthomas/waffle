@@ -2,7 +2,7 @@
 
 Flask + Injector + SQLAlchemy + Jinja2
 
-    from ape import main
+    from waffle import main
 
     @main
     def main():
@@ -18,7 +18,7 @@ __version__ = '0.2.1'
 all_by_module = {
     'waffle.common':        ['AppModules'],
     'waffle.app':           ['run', 'modules', 'command', 'main', 'create_injector_from_flags'],
-    'waffle.db':            ['DatabaseSession', 'Base', 'DatabaseModule',
+    'waffle.db':            ['DatabaseSession', 'Model', 'DatabaseModule',
                              'DatabaseEngine', 'transaction', 'session_from'],
     'waffle.flags':         ['Flags', 'flag', 'parser', 'Flag',
                              'FlagsModule', 'set_flag_defaults'],
@@ -26,16 +26,11 @@ all_by_module = {
     'waffle.redis':         ['RedisModule'],
     'waffle.log':           ['LogLevel', 'LoggingModule'],
     'waffle.web.common':    ['WebModules'],
-    'waffle.web.flask':     ['Controllers', 'Request', 'RequestTeardown',
-                             'ErrorHandlers', 'FlaskExtensions', 'BeforeRequest',
-                             'FlaskConfiguration', 'ControllersModule',
-                             'controllers', 'InjectorView', 'request',
-                             'RequestScope', 'route', 'decorator',
-                             'FlaskModule', 'AllImportedControllersModule'],
+    'waffle.web.clastic':   ['RequestScope', 'request', 'WebModule', 'WebApplication', 'Request',
+                             'route', 'routes', 'AllImportedRoutesModule'],
     'waffle.web.csrf':      ['CsrfModule', 'csrf_exempt'],
     'waffle.web.db':        ['DatabaseSessionModule'],
-    'waffle.web.template':  ['TemplateContext', 'TemplateFilters', 'Loader', 'Renderer',
-                             'Template', 'TemplateModule', 'template'],
+    'waffle.web.template':  ['TemplateContext', 'TemplateGlobals', 'TemplateFilters', 'TemplateModule'],
 }
 
 # modules that should be imported when accessed as attributes of waffle

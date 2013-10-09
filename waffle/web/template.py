@@ -3,20 +3,17 @@ from __future__ import absolute_import
 import codecs
 import os
 
-from injector import Module, ParameterizedBuilder, MappingKey, inject, singleton, provides
-from jinja2 import Environment, BaseLoader, TemplateNotFound
-from flask import Flask, url_for
+from injector import Module, MappingKey, Binder, Injector, inject, singleton, provides
+from jinja2 import Environment, BaseLoader, TemplateNotFound, StrictUndefined
+from clastic import Middleware, Response
 
 from waffle.flags import Flag, flag
+from waffle.web.clastic import RenderFactory, Middlewares, request
 
 
 """Jinja2 based templating system for Waffle.
 
-This system does not rely on Flask.
-
-- Jinja2 templates are used server side and nunjucks templates are used client
-  side.
-- The render context for templates can be extended by Injector modules with:
+The render context for templates can be extended by Injector modules with:
 
     binder.multibind(TemplateContext, to={
         'debug': debug,
@@ -28,13 +25,13 @@ This system does not rely on Flask.
 # A binding key for contributors to the template context. See
 # :class:`TemplateModule` for an example of how to extend the context.
 TemplateContext = MappingKey('TemplateContext')
-
+# Jinja2 template globals.
+TemplateGlobals = MappingKey('TemplateGlobals')
 # A binding key for contributing filters to templates.
 TemplateFilters = MappingKey('TemplateFilters')
 
 
-flag('--template_root', metavar='DIR',
-    help='Root directory for HTML templates.')
+flag('--template_root', metavar='DIR', help='Root directory for HTML templates.')
 
 
 @singleton
@@ -54,20 +51,43 @@ class Loader(BaseLoader):
             return fd.read(), path, lambda: mtime == os.path.getmtime(path)
 
 
-class Renderer(object):
-    @inject(environment=Environment)
-    def __init__(self, filename, environment):
-        self._template = environment.get_template(filename)
+class Jinja2RenderFactory(object):
+    def __init__(self, env, injector):
+        self._env = env
+        self._injector = injector
 
-    @inject(template_context=TemplateContext)
-    def __call__(self, context={}, template_context={}):
-        context = dict(template_context, **context)
-        return self._template.render(**context)
+    def __call__(self, template_filename):
+        template = self._env.get_template(template_filename)
+
+        def render(context):
+            merged_context = dict(self._injector.get(TemplateContext), **context)
+            content = template.render(**merged_context)
+            return Response(content, status=200, mimetype='text/html')
+
+        return render
 
 
-def Template(filename):
-    """Inject a compiled template."""
-    return singleton(ParameterizedBuilder(Renderer, filename=filename))
+class UrlFor(object):
+    def __init__(self, url_adapter):
+        self._url_adapter = url_adapter
+
+    def __call__(self, endpoint, **values):
+        force_external = values.pop('force_external', False)
+        return self._url_adapter.build(endpoint, values, force_external=force_external)
+
+
+class TemplateMiddleware(Middleware):
+    def __init__(self, binder):
+        self._binder = binder
+
+    def request(self, next, request, session):
+        self._binder.bind(TemplateContext, to={
+            'session': session,
+            'request': request,
+            # 'url_for': url_for,
+            # 'static': lambda filename: url_for('static', filename=filename),
+            }, scope=request)
+        return next()
 
 
 class TemplateModule(Module):
@@ -79,23 +99,24 @@ class TemplateModule(Module):
     """
     @inject(debug=Flag('debug'))
     def configure(self, binder, debug):
-        binder.multibind(TemplateContext, to={
-            'debug': debug,
-            'url_for': url_for,
-            'static': lambda filename: url_for('static', filename=filename),
-        })
-        binder.multibind(TemplateFilters, to={})
+        binder.multibind(TemplateGlobals, to={}, scope=singleton)
+        binder.multibind(TemplateFilters, to={}, scope=singleton)
+        binder.multibind(TemplateContext, to={'debug': debug}, scope=request)
 
     @provides(Environment, scope=singleton)
-    @inject(app=Flask, loader=Loader, debug=Flag('debug'), filters=TemplateFilters)
-    def provides_template_environment(self, app, loader, debug, filters):
-        env = Environment(loader=loader, autoescape=True, auto_reload=debug)
-        env.filters.update(app.jinja_env.filters)
+    @inject(loader=Loader, debug=Flag('debug'), filters=TemplateFilters, globals=TemplateGlobals)
+    def provides_template_environment(self, loader, debug, filters, globals=globals):
+        env = Environment(loader=loader, autoescape=True, auto_reload=debug, undefined=StrictUndefined)
         env.filters.update(filters)
-        env.globals.update(app.jinja_env.globals)
+        env.globals.update(globals)
         return env
 
+    @provides(RenderFactory, scope=singleton)
+    @inject(environment=Environment, injector=Injector)
+    def provide_render_factory(self, environment, injector):
+        return Jinja2RenderFactory(environment, injector)
 
-def template(filename):
-    """A decorator that injects a "template" argument."""
-    return inject(template=Template(filename))
+    @provides(Middlewares, scope=singleton)
+    @inject(binder=Binder)
+    def provide_template_middleware(self, binder):
+        return [TemplateMiddleware(binder)]

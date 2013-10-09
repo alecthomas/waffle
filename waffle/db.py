@@ -1,3 +1,4 @@
+import inspect
 import logging
 from functools import wraps
 
@@ -46,6 +47,7 @@ class ExplicitSessionManager(object):
     This provides the following semantics:
 
     - Sessions are started via a contextmanager.
+    - Using the ExplicitSessionManager (typically via Model.query) is invalid.
     - Entering a Session context opens a transaction and returns a session recursively.
     - Provides a query_property that can only be used within a transaction.
     - A transaction can *only* be opened by a context manager.
@@ -100,7 +102,7 @@ class ExplicitSessionManager(object):
         return getattr(self._registry(), name)
 
 
-class _Base(object):
+class _Model(object):
     @declared_attr
     def __tablename__(cls):
         return cls.__name__
@@ -146,7 +148,7 @@ class _Base(object):
         return '%s(%s)' % (cls_name, ', '.join(format(mro_reprs(self))))
 
 
-Base = declarative_base(cls=_Base)
+Model = declarative_base(cls=_Model)
 
 
 class DatabaseModule(Module):
@@ -173,8 +175,8 @@ class DatabaseModule(Module):
     def provide_db_session(self, engine):
         factory = sessionmaker(autocommit=True, autoflush=True, bind=engine, class_=ExplicitSession)
         session = ExplicitSessionManager(factory)
-        Base.query = session.query_property()
-        Base.metadata.create_all(bind=engine)
+        Model.query = session.query_property()
+        Model.metadata.create_all(bind=engine)
         return session
 
 
@@ -184,7 +186,7 @@ def session_from(thing):
     if isinstance(thing, (ExplicitSession, ExplicitSessionManager)):
         return thing
 
-    if isinstance(thing, Base) or type(thing) is type:
+    if isinstance(thing, Model) or type(thing) is type:
         return thing.query.session
 
     if hasattr(thing, '_session'):
@@ -201,7 +203,7 @@ def transaction(thing):
         with transaction(session):
             ...
 
-    With objects/classes derived from Base:
+    With objects/classes derived from Model:
 
         with transaction(user):
             ...
@@ -219,9 +221,17 @@ def transaction(thing):
     if session is not None:
         return session
 
-    @wraps(thing)
-    def wrapper(self, *args, **kwargs):
-        with session_from(self):
-            return thing(self, *args, **kwargs)
+    argspec = inspect.getargspec(thing)
 
-    return wrapper
+    # Instance method?
+    if argspec.args and argspec.args[0] in ('self', 'cls'):
+        @wraps(thing)
+        def wrapper(self, *args, **kwargs):
+            with session_from(self):
+                return thing(self, *args, **kwargs)
+
+        return wrapper
+
+    # Raw function
+    thing.__transaction__ = True
+    return thing

@@ -26,11 +26,13 @@ all_by_module = {
     'waffle.redis':         ['RedisModule'],
     'waffle.log':           ['LogLevel', 'LoggingModule'],
     'waffle.web.common':    ['WebModules'],
-    'waffle.web.clastic':   ['RequestScope', 'request', 'WebModule', 'WebApplication', 'Request',
-                             'route', 'routes', 'AllImportedRoutesModule'],
+    'waffle.web.clastic':   ['RequestScope', 'WebModule', 'WebApplication', 'Request',
+                             'Routes', 'Middlewares', 'Resources', 'ErrorHandlers',
+                             'RenderFactory', 'SessionCookie', 'route', 'routes'],
     'waffle.web.csrf':      ['CsrfModule', 'csrf_exempt'],
     'waffle.web.db':        ['DatabaseSessionModule'],
-    'waffle.web.template':  ['TemplateContext', 'TemplateGlobals', 'TemplateFilters', 'TemplateModule'],
+    'waffle.web.template':  ['TemplateContext', 'TemplateGlobals', 'TemplateFilters',
+                             'TemplateModule', 'template_filter'],
 }
 
 # modules that should be imported when accessed as attributes of waffle

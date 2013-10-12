@@ -186,13 +186,13 @@ def session_from(thing):
     if isinstance(thing, (ExplicitSession, ExplicitSessionManager)):
         return thing
 
-    if isinstance(thing, Model) or type(thing) is type:
+    if isinstance(thing, Model) or type(thing) is type and issubclass(thing, Model):
         return thing.query.session
 
     if hasattr(thing, '_session'):
         return thing._session
 
-    return None
+    raise ValueError('could not acquire DB session from %r' % thing)
 
 
 def transaction(thing):

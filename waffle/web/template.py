@@ -8,7 +8,7 @@ from jinja2 import Environment, BaseLoader, TemplateNotFound, StrictUndefined
 from clastic import Middleware, Response
 
 from waffle.flags import Flag, flag
-from waffle.web.clastic import RenderFactory, Middlewares, request
+from waffle.web.clastic import RenderFactory, Middlewares, RequestScope
 
 
 """Jinja2 based templating system for Waffle.
@@ -32,6 +32,17 @@ TemplateFilters = MappingKey('TemplateFilters')
 
 
 flag('--template_root', metavar='DIR', help='Root directory for HTML templates.')
+
+
+_filters = {}
+
+
+def template_filter(name):
+    """Register a template filter."""
+    def apply(f):
+        _filters[name] = f
+        return f
+    return apply
 
 
 @singleton
@@ -86,7 +97,7 @@ class TemplateMiddleware(Middleware):
             'request': request,
             # 'url_for': url_for,
             # 'static': lambda filename: url_for('static', filename=filename),
-            }, scope=request)
+            }, scope=RequestScope)
         return next()
 
 
@@ -101,12 +112,13 @@ class TemplateModule(Module):
     def configure(self, binder, debug):
         binder.multibind(TemplateGlobals, to={}, scope=singleton)
         binder.multibind(TemplateFilters, to={}, scope=singleton)
-        binder.multibind(TemplateContext, to={'debug': debug}, scope=request)
+        binder.multibind(TemplateContext, to={'debug': debug}, scope=RequestScope)
 
     @provides(Environment, scope=singleton)
     @inject(loader=Loader, debug=Flag('debug'), filters=TemplateFilters, globals=TemplateGlobals)
     def provides_template_environment(self, loader, debug, filters, globals=globals):
         env = Environment(loader=loader, autoescape=True, auto_reload=debug, undefined=StrictUndefined)
+        env.filters.update(_filters)
         env.filters.update(filters)
         env.globals.update(globals)
         return env

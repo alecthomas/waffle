@@ -184,10 +184,6 @@ injector.get(BackdoorServer).start()
 
 Integrates [Clastic](https://github.com/mahmoud/clastic) through an injector module. This is the core module for providing web application support.
 
-### waffle.web.clastic.AllImportedRoutesModule
-
-Automatically binds all imported `@route` endpoints. This obviates the need for the `@controllers` decorator on entry points.
-
 ### waffle.web.db.DatabaseSessionModule
 
 A module that manages DB session lifecycle in HTTP requests. This basically resets the session at the end of each request.

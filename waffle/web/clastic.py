@@ -18,6 +18,8 @@ SessionCookie = JSONCookie
 
 
 flag('--static_root', help='Path to web server static resources.', metavar='PATH')
+flag('--bind_address', help='Address to bind HTTP server to.', metavar='IP', default='127.0.0.1')
+flag('--bind_port', help='Port to bind HTTP server to.', metavar='PORT', type=int, default='8080')
 
 
 _routes = []
@@ -98,11 +100,6 @@ class RequestScopeMiddleware(WebMiddleware):
             self._scope.reset()
 
 
-class AllImportedRoutesModule(Module):
-    def configure(self, binder):
-        binder.multibind(Routes, to=_routes, scope=singleton)
-
-
 class WebModule(Module):
     def configure(self, binder):
         binder.bind_scope(RequestScope)
@@ -115,6 +112,7 @@ class WebModule(Module):
             CookieSessionMiddleware(cookie_name='waffle_session'),
             binder.injector.get(RequestScopeMiddleware),
         ], scope=singleton)
+        binder.multibind(Routes, to=_routes, scope=singleton)
 
     @provides(WebApplication, scope=singleton)
     @inject(middlewares=Middlewares, routes=Routes, resources=Resources,

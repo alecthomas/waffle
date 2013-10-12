@@ -79,7 +79,11 @@ run(log_level='warning')
 
 ### A full example web server with database
 
-This example also shows how to set defaults for flags, by passing the flags as keyword arguments to either `main()` or `run()`.
+This example illustrates several aspects of Waffle:
+
+- How to set defaults for flags by passing the flags as keyword arguments to either `main()` or `run()`.
+- The use of the convenience Injector modules `AppModules` and `WebModules`, which install commonly used modules for applications and web applications, respectively.
+- Use of the `@transaction` decorator to wrap requests in an SQLAlchemy transaction.
 
 
 ```python
@@ -105,7 +109,7 @@ def index():
 @route('/<key>')
 @transaction
 @csrf_exempt
-def get(request, key):
+def get_or_create(request, key):
     kv = KeyValue.query.filter_by(key=key).all()
     if kv:
         kv = kv[0]
@@ -123,7 +127,6 @@ def get(request, key):
 @main(database_uri='sqlite:///:memory:', static_root='./static/',
       template_root='./templates/')
 @modules(AppModules, WebModules)
-@routes(index, get)
 @inject(app=WebApplication)
 def main(app):
     app.serve(port=8081, use_reloader=False)

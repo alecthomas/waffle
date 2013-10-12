@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from injector import Module, Binder, provides, inject
 from clastic import Middleware
-from werkzeug.exceptions import BadRequest
+from werkzeug import abort
 
 from waffle.flags import Flag
 from waffle.web.clastic import Middlewares, SessionCookie, request
@@ -23,7 +23,7 @@ class CsrfMiddleware(Middleware):
         if request.method == "POST" and not hasattr(_route.endpoint, '__csrf_exempt__'):
             csrf_token = session.pop('_csrf_token', None)
             if not csrf_token or csrf_token != request.form.get('_csrf_token'):
-                raise BadRequest('invalid CSRF token')
+                raise abort(403, 'invalid CSRF token')
 
         return next()
 

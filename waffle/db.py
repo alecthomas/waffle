@@ -12,11 +12,7 @@ from sqlalchemy.orm.exc import UnmappedClassError
 from sqlalchemy.orm.session import Session
 from sqlalchemy.util import ThreadLocalRegistry
 
-from waffle.flags import Flag, flag
-
-
-flag('--database_uri', help='Database URI.', metavar='URI')
-flag('--database_pool_size', help='Database connection pool size.', metavar='N', default=5)
+from waffle.flags import Flag
 
 
 DatabaseSession = Session
@@ -159,15 +155,17 @@ class DatabaseModule(Module):
     - Provides DatabaseSession, a thread safe factory for SQLAlchemy sessions.
     """
 
+    database_uri = Flag('--database_uri', help='Database URI.', metavar='URI')
+    database_pool_size = Flag('--database_pool_size', help='Database connection pool size.', metavar='N', default=5)
+
     @provides(DatabaseEngine, scope=singleton)
-    @inject(database_uri=Flag('database_uri'), database_pool_size=Flag('database_pool_size'))
-    def provide_db_engine(self, database_uri, database_pool_size):
-        assert database_uri, '--database_uri not set, set a default in main() or run()'
-        logging.info('Connecting to %s', database_uri)
+    def provide_db_engine(self):
+        assert self.database_uri, '--database_uri not set, set a default in main() or run()'
+        logging.info('Connecting to %s', self.database_uri)
         extra_args = {}
-        if not database_uri.startswith('sqlite:'):
-            extra_args['pool_size'] = database_pool_size
-        engine = create_engine(database_uri, convert_unicode=True, **extra_args)
+        if not self.database_uri.startswith('sqlite:'):
+            extra_args['pool_size'] = self.database_pool_size
+        engine = create_engine(self.database_uri, convert_unicode=True, **extra_args)
         return engine
 
     @provides(DatabaseSession, scope=singleton)
@@ -192,7 +190,7 @@ def session_from(thing):
     if hasattr(thing, '_session'):
         return thing._session
 
-    raise ValueError('could not acquire DB session from %r' % thing)
+    return None
 
 
 def transaction(thing):

@@ -1,25 +1,19 @@
 import logging
 
-from injector import Module, Key, inject
+from injector import Module, Key, Binder, provides, inject
 from logging import Formatter
 try:
     from colorlog import ColoredFormatter
 except ImportError:
     ColoredFormatter = None
 
-from waffle.flags import Flags, flag
+from waffle.flags import Flag, FlagKey, AppStartup
 
 
 LogLevel = Key('LogLevel')
 
 
 LOG_LEVELS = ['finest', 'finer', 'fine', 'debug', 'info', 'warning', 'error', 'critical']
-
-
-flag('--log_to_stdout', action='store_true', help='Log to stdout.')
-flag('--log_format', help='Python logging format.', default='%(name)30s.%(levelname)-7s %(message)s', metavar='FORMAT')
-flag('--log_level', help='Minimum log level.', default='warning', choices=LOG_LEVELS, metavar='LEVEL')
-flag('-L', '--logger_levels', help='Set a set of logger levels.', metavar='LOGGER=LEVEL ...', action='append', default=[], type=str)
 
 
 def _configure_logging():
@@ -52,12 +46,22 @@ class LoggingModule(Module):
     - Will use colorlog if available.
     - Binds LogLevel to the global log level.
     """
-    @inject(flags=Flags)
-    def configure(self, binder, flags):
-        if flags.debug:
+
+    log_to_stdout = Flag('--log_to_stdout', action='store_true', help='Log to stdout.')
+    log_format = Flag('--log_format', help='Python logging format.', default='%(name)30s.%(levelname)-7s %(message)s', metavar='FORMAT')
+    log_level = Flag('--log_level', help='Minimum log level.', default='warning', choices=LOG_LEVELS, metavar='LEVEL')
+    logger_levels = Flag('-L', '--logger_levels', help='Set a set of logger levels.', metavar='LOGGER=LEVEL ...', action='append', default=[], type=str)
+
+    @provides(AppStartup)
+    def provide_logging_configuration(self):
+        return [self.configure_logging]
+
+    @inject(debug=FlagKey('debug'), binder=Binder)
+    def configure_logging(self, debug, binder):
+        if debug:
             level = logging.FINEST
         else:
-            level = getattr(logging, flags.log_level.upper())
+            level = getattr(logging, self.log_level.upper())
 
         root = logging.getLogger()
 
@@ -65,9 +69,9 @@ class LoggingModule(Module):
         map(root.removeHandler, root.handlers[:])
         map(root.removeFilter, root.filters[:])
 
-        if flags.log_to_stdout and ColoredFormatter:
+        if self.log_to_stdout and ColoredFormatter:
             formatter = ColoredFormatter(
-                '%(log_color)s' + flags.log_format,
+                '%(log_color)s' + self.log_format,
                 datefmt=None,
                 reset=True,
                 log_colors={
@@ -82,16 +86,16 @@ class LoggingModule(Module):
                 }
             )
         else:
-            formatter = Formatter(flags.log_format)
+            formatter = Formatter(self.log_format)
 
         stdout = logging.StreamHandler()
-        stdout.setLevel(level if flags.log_to_stdout else logging.WARNING)
+        stdout.setLevel(level if self.log_to_stdout else logging.WARNING)
         stdout.setFormatter(formatter)
 
         root.addHandler(stdout)
         root.setLevel(level)
 
-        for levels in flags.logger_levels:
+        for levels in self.logger_levels:
             name, level = levels.split('=')
             if level not in LOG_LEVELS:
                 raise RuntimeError('Invalid log level ' + level)

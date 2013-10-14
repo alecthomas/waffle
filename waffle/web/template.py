@@ -7,7 +7,7 @@ from injector import Module, MappingKey, Binder, Injector, inject, singleton, pr
 from jinja2 import Environment, BaseLoader, TemplateNotFound, StrictUndefined
 from clastic import Middleware, Response
 
-from waffle.flags import Flag, flag
+from waffle.flags import Flag, FlagKey
 from waffle.web.clastic import RenderFactory, Middlewares, RequestScope
 
 
@@ -31,9 +31,6 @@ TemplateGlobals = MappingKey('TemplateGlobals')
 TemplateFilters = MappingKey('TemplateFilters')
 
 
-flag('--template_root', metavar='DIR', help='Root directory for HTML templates.')
-
-
 _filters = {}
 
 
@@ -48,7 +45,8 @@ def template_filter(name):
 @singleton
 class Loader(BaseLoader):
     """Template loader."""
-    @inject(template_root=Flag('template_root'))
+
+    @inject(template_root=FlagKey('template_root'))
     def __init__(self, template_root):
         assert template_root, 'template_root must be provided'
         self._template_root = template_root
@@ -108,14 +106,21 @@ class TemplateModule(Module):
     itself. The default context for a template can be extended by multibinding
     TemplateContext.
     """
-    @inject(debug=Flag('debug'))
-    def configure(self, binder, debug):
+
+    template_root = Flag('--template_root', metavar='DIR', help='Root directory for HTML templates.')
+
+    def configure(self, binder):
         binder.multibind(TemplateGlobals, to={}, scope=singleton)
         binder.multibind(TemplateFilters, to={}, scope=singleton)
-        binder.multibind(TemplateContext, to={'debug': debug}, scope=RequestScope)
+        binder.multibind(TemplateContext, to={}, scope=RequestScope)
+
+    @provides(TemplateGlobals)
+    @inject(debug=FlagKey('debug'))
+    def provide_template_globals(self, debug):
+        return {'debug': debug}
 
     @provides(Environment, scope=singleton)
-    @inject(loader=Loader, debug=Flag('debug'), filters=TemplateFilters, globals=TemplateGlobals)
+    @inject(loader=Loader, debug=FlagKey('debug'), filters=TemplateFilters, globals=TemplateGlobals)
     def provides_template_environment(self, loader, debug, filters, globals=globals):
         env = Environment(loader=loader, autoescape=True, auto_reload=debug, undefined=StrictUndefined)
         env.filters.update(_filters)

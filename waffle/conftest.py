@@ -7,8 +7,8 @@ import pytest
 from injector import Injector, Module
 from sqlalchemy import Column, Integer, String, ForeignKey
 
-from waffle.db import DatabaseModule, DatabaseEngine, DatabaseSession, Base
-from waffle.flags import Flag
+from waffle.db import DatabaseModule, DatabaseEngine, DatabaseSession, Model
+from waffle.flags import FlagKey
 
 
 class TestingModule(Module):
@@ -17,12 +17,12 @@ class TestingModule(Module):
 
     def configure(self, binder):
         print self.tmpfile
-        binder.bind(Flag('database_uri'), to='sqlite:///%s' % self.tmpfile)
-        binder.bind(Flag('database_pool_size'), to=0)
+        binder.bind(FlagKey('database_uri'), to='sqlite:///%s' % self.tmpfile)
+        binder.bind(FlagKey('database_pool_size'), to=0)
         logging.getLogger('sqlalchemy.engine').setLevel(logging.DEBUG)
 
 
-class User(Base):
+class User(Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(20))
     friend = ForeignKey(Integer, 'User')
@@ -43,7 +43,7 @@ def db(request):
     @request.addfinalizer
     def finalize_session():
         session.remove()
-        Base.metadata.drop_all(bind=engine)
+        Model.metadata.drop_all(bind=engine)
         engine.dispose()
         tmpfile.close()
 

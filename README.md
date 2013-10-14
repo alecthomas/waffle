@@ -82,7 +82,8 @@ run(log_level='warning')
 This example illustrates several aspects of Waffle:
 
 - How to set defaults for flags by passing the flags as keyword arguments to either `main()` or `run()`.
-- The use of the convenience Injector modules `AppModules` and `WebModules`, which install commonly used modules for applications and web applications, respectively.
+- The use of the convenience Injector modules `AppModules` and `WebModules`, which install commonly used modules for applications and web applications, respectively. See [below](#available-modules) for details.
+
 - Use of the `@transaction` decorator to wrap requests in an SQLAlchemy transaction.
 
 

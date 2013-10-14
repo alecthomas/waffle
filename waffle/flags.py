@@ -1,20 +1,27 @@
-from argparse import HelpFormatter, SUPPRESS, OPTIONAL, ZERO_OR_MORE
-from argh import ArghParser, arg, dispatch, expects_obj, set_default_command, dispatch, add_commands
-from injector import Module, Key, singleton
+import sys
+import inspect
+from functools import wraps
+
+from argparse import ArgumentParser, HelpFormatter, SUPPRESS, OPTIONAL, ZERO_OR_MORE
+from injector import Injector, Binder, Module, Key, SequenceKey, MappingKey, singleton, provides, inject
 
 
 """A configuration system backed by flags and files.
 
 - Basically a thin wrapper around argh.
-- Provides a "flag" function that adds extra global flags.
+- Provides a "Flag" property for use in modules that adds global flags.
 - Provides a global parser which any package can add arguments to (via the "flag" function).
-- Binds parsed flags (as Flags) and individual flags (as Flag('flag')) to the
+- Binds parsed flags (as Flags) and individual flags (as FlagKey('flag')) to the
   injector.
+- Also provides several decorators for bootstrapping an application with flags.
 """
 
 
-# Parsed command line arguments can be injected with this key.
+AppStartup = SequenceKey('AppStartup')
+# Parsed command line arguments can be injected with this key, or individually with FlagKey(name)
 Flags = Key('Flags')
+_ProvidedFlags = SequenceKey('_ProvidedFlags')
+FlagDefaults = MappingKey('FlagDefaults')
 
 
 class ArgumentDefaultsHelpFormatter(HelpFormatter):
@@ -30,79 +37,196 @@ class ArgumentDefaultsHelpFormatter(HelpFormatter):
         return help
 
 
-parser = ArghParser(fromfile_prefix_chars='@', formatter_class=ArgumentDefaultsHelpFormatter)
+_flag_key_cache = {}
 
 
-_flags = []
-
-
-def flag(*args, **kwargs):
-    """Register a global or command-specific flag.
-
-    If used as a function call at the global level, will register a global flag.
-
-        flag('--debug', help='Enable debug.', action='store_true')
-
-    If used as a decorator on a @command, will add a command-specific flag:
-
-        @flag('--root', help='Root directory.')
-    """
-    _flags.append((args, kwargs))
-
-    def apply(f):
-        args, kwargs = _flags.pop()
-        return arg(*args, **kwargs)(f)
-
-    return apply
-
-
-flag('--debug', help='Enable debug mode.', action='store_true')
-
-
-_flag_keys = {}
-
-
-def _flag_name(name):
+def _flag_key_name(name):
     return 'Flag' + name.title().replace('_', '')
 
 
-def Flag(name):
-    """An injector binding key for an individual flag."""
+def FlagKey(name):
+    """An injector binding key for an individual flag.
+
+    Use this to inject individual flag values.
+    """
     try:
-        return _flag_keys[name]
+        return _flag_key_cache[name]
     except KeyError:
-        key = _flag_keys[name] = Key(_flag_name(name))
+        key = _flag_key_cache[name] = Key(_flag_key_name(name))
         return key
 
 
-class FlagsModule(Module):
-    """Bind parsed flags to the injector.
+class _ProvideFlag(object):
+    def __init__(self, dest, *args, **kwargs):
+        self._dest = dest
+        self._args = args
+        self._kwargs = kwargs
 
-    Note that this will only bind global flags.
+    def __get__(self, instance, owner):
+        if instance is None:
+            return owner
+        return instance.__injector__.get(FlagKey(self._dest))
+
+
+def _extract_dest(args, kwargs):
+    if 'dest' in kwargs:
+        return kwargs['dest']
+    for arg in args:
+        if arg.startswith('--'):
+            return arg[2:]
+    for arg in args:
+        if arg.startswith('-'):
+            return arg[1:]
+    raise ValueError('could not extract dest for flag with args %r %r' % (args, kwargs))
+
+
+def Flag(*args, **kwargs):
+    """Provide a flag from an Injector module.
+
+        class MyModule(Module):
+            debug = Flag('--debug', help='Enable debug')
+
+    This flag is available as a property to that module, and via injection
+    with FlagKey('debug').
     """
-    def __init__(self, args):
+
+    dest = _extract_dest(args, kwargs)
+
+    @provides(_ProvidedFlags)
+    def provide_flag(self):
+        return [(args, kwargs)]
+    provide_flag.__name__ = 'provides_flag_' + dest
+
+    @provides(FlagKey(dest), scope=singleton)
+    @inject(flags=Flags)
+    def provide_flag_value(self, flags):
+        return getattr(flags, dest)
+    provide_flag_value.__name__ = 'provides_flag_value_' + dest
+
+    # There is a bit of magic here. We basically inject two @provide methods
+    # into the calling scope. They provide the initial flag parameters, and the
+    # final flag value.
+    frames = inspect.stack()
+    frames[1][0].f_locals[provide_flag.__name__] = provide_flag
+    frames[1][0].f_locals[provide_flag_value.__name__] = provide_flag_value
+
+    return _ProvideFlag(dest, *args, **kwargs)
+
+
+class FlagsModule(Module):
+    """Provide flags to an Injector."""
+
+    debug = Flag('--debug', help='Enable debug mode.', action='store_true')
+
+    def __init__(self, args, defaults=None):
         self.args = args
+        self.defaults = defaults or {}
+
+    @provides(ArgumentParser, scope=singleton)
+    @inject(binder=Binder, flags=_ProvidedFlags, defaults=FlagDefaults)
+    def provide_argh_parser(self, binder, flags, defaults):
+        parser = ArgumentParser(fromfile_prefix_chars='@', formatter_class=ArgumentDefaultsHelpFormatter)
+        for args, kwargs in flags:
+            parser.add_argument(*args, **kwargs)
+        parser.set_defaults(**self.defaults)
+        parser.set_defaults(**defaults)
+        return parser
+
+    @provides(Flags, scope=singleton)
+    @inject(parser=ArgumentParser)
+    def provide_flags(self, parser):
+        return parser.parse_args(self.args[1:])
 
     def configure(self, binder):
-        binder.bind(Flags, to=self.args, scope=singleton)
-        # Bind individual flags.
-
-        #  FIXME: Unfortunately, argh does not set defaults on any options
-        # created through the @arg decorator. This means that there is no
-        # obvious way to acquire the default value of one of these options,
-        # and they will be None by default.
-        for option in parser._actions:
-            if option.dest not in ('help', '==SUPPRESS=='):
-                value = getattr(self.args, option.dest, option.default)
-                binder.bind(Flag(option.dest), to=lambda v=value: v, scope=singleton)
+        binder.multibind(FlagDefaults, to={}, scope=singleton)
+        binder.multibind(_ProvidedFlags, to=[], scope=singleton)
 
 
-def _apply_flags():
-    while _flags:
-        args, kwargs = _flags.pop(0)
-        parser.add_argument(*args, **kwargs)
+class FlagModule(Module):
+    """A module providing a single flag."""
+
+    def __init__(self, args, kwargs):
+        self._args = args
+        self._kwargs = kwargs
+        self._dest = _extract_dest(args, kwargs)
+
+    def configure(self, binder):
+        binder.bind(FlagKey(self._dest), to=self.provide_flag_value, scope=singleton)
+
+    @provides(_ProvidedFlags)
+    def provide_flag(self):
+        return [(self._args, self._kwargs)]
+
+    @inject(flags=Flags)
+    def provide_flag_value(self, flags):
+        return getattr(flags, self._dest)
 
 
-def set_flag_defaults(**defaults):
-    _apply_flags()
-    parser.set_defaults(**defaults)
+def flag(*args, **kwargs):
+    """A convenience decorator for main/module that adds flags."""
+    def wrap(f):
+        f.__injector_modules__ = getattr(f, '__injector_modules__', []) + [FlagModule(args, kwargs)]
+        return f
+    return wrap
+
+
+def create_injector_from_flags(args=None, modules=[], defaults=None, **kwargs):
+    """Create an application Injector from command line flags.
+
+    Calls all AppStartup hooks.
+    """
+    if args is None:
+        args = sys.argv
+    modules = [FlagsModule(args, defaults=defaults)] + modules
+    injector = Injector(modules, **kwargs)
+    injector.binder.multibind(AppStartup, to=[])
+    for startup in injector.get(AppStartup):
+        injector.call_with_injection(startup)
+    return injector
+
+
+def modules(*modules):
+    """A decorator that specifies Injector modules to use when bootstrapping the application.
+
+    See :func:`main` for details.
+    """
+    def wrapper(f):
+        f.__injector_modules__ = getattr(f, '__injector_modules__', []) + list(modules)
+        return f
+    return wrapper
+
+
+def main(_f=None, **defaults):
+    """A decorator that marks and runs the main entry point.
+
+    *MUST* be the top-most decorator.
+
+    Basic usage:
+
+        @main
+        def main():
+            pass
+
+    Optionally provide defaults for global flags:
+
+        @main(database_uri='sqlite:///t.db')
+        @modules(MyMainModule, AppModules, WebModules)
+        def main():
+            pass
+    """
+    def wrapper(f):
+        injector = create_injector_from_flags(modules=getattr(f, '__injector_modules__', []), defaults=defaults)
+
+        @wraps(f)
+        def inner():
+            # Force all flags to be parsed.
+            injector.get(Flags)
+            return injector.call_with_injection(f)
+
+        inner()
+
+    if _f is not None:
+        wrapper(_f)
+        return
+    else:
+        return wrapper

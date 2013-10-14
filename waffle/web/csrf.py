@@ -3,11 +3,11 @@ from __future__ import absolute_import
 import logging
 from uuid import uuid4
 
-from injector import Module, Binder, provides, inject
+from injector import Module, provides, inject
 from clastic import Middleware
 from werkzeug import abort
 
-from waffle.flags import Flag
+from waffle.flags import FlagKey
 from waffle.web.clastic import Middlewares, SessionCookie, request
 from waffle.web.template import TemplateContext
 
@@ -16,9 +16,6 @@ logger = logging.getLogger(__name__)
 
 
 class CsrfMiddleware(Middleware):
-    def __init__(self, binder):
-        self._binder = binder
-
     def request(self, next, request, session, _route):
         if request.method == "POST" and not hasattr(_route.endpoint, '__csrf_exempt__'):
             csrf_token = session.pop('_csrf_token', None)
@@ -38,9 +35,9 @@ class CsrfModule(Module):
     """Provide CSRF support to the template module."""
 
     @provides(Middlewares)
-    @inject(debug=Flag('debug'), binder=Binder)
-    def provides_sea_surf_extension(self, debug, binder):
-        return [CsrfMiddleware(binder)]
+    @inject(debug=FlagKey('debug'))
+    def provides_sea_surf_extension(self, debug):
+        return [CsrfMiddleware()]
 
     @provides(TemplateContext, scope=request)
     @inject(session=SessionCookie)

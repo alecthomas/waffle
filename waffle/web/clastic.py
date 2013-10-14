@@ -2,11 +2,11 @@ from __future__ import absolute_import
 
 from injector import Injector, Module, Scope, ScopeDecorator, InstanceProvider, \
     Key, Binder, SequenceKey, MappingKey, provides, inject, singleton
-from clastic import Application as WebApplication, Middleware as WebMiddleware, Request, render_basic
+from clastic import Application, Middleware as WebMiddleware, Request, render_basic
 from clastic.middleware.session import CookieSessionMiddleware, JSONCookie
 from werkzeug.local import Local, LocalManager
 
-from waffle.flags import flag
+from waffle.flags import Flag, Flags
 
 
 Routes = SequenceKey('Routes')
@@ -15,11 +15,6 @@ Resources = MappingKey('Resources')
 ErrorHandlers = MappingKey('ErrorHandlers')
 RenderFactory = Key('RenderFactory')
 SessionCookie = JSONCookie
-
-
-flag('--static_root', help='Path to web server static resources.', metavar='PATH')
-flag('--bind_address', help='Address to bind HTTP server to.', metavar='IP', default='127.0.0.1')
-flag('--bind_port', help='Port to bind HTTP server to.', metavar='PORT', type=int, default='8080')
 
 
 _routes = []
@@ -100,7 +95,38 @@ class RequestScopeMiddleware(WebMiddleware):
             self._scope.reset()
 
 
+@singleton
+class WebApplication(Application):
+    """An injector aware subclass of clastic.Application."""
+
+    @inject(middlewares=Middlewares, routes=Routes, resources=Resources,
+            error_handlers=ErrorHandlers, injector=Injector,
+            render_factory=RenderFactory)
+    def __init__(self, middlewares, routes, resources, error_handlers, injector,
+                 render_factory, **kwargs):
+        # Make routes injectable.
+        routes = [(p, (injector.wrap_function(f) if hasattr(f, '__bindings__') else f), r)
+                  for p, f, r in routes]
+        super(WebApplication, self).__init__(
+            routes=routes,
+            resources=resources,
+            middlewares=middlewares,
+            error_handlers=error_handlers,
+            render_factory=render_factory,
+            **kwargs
+            )
+
+    @inject(flags=Flags)
+    def serve(self, flags, **kwargs):
+        args = dict(address=flags.bind_address, port=flags.bind_port, use_reloader=flags.debug, **kwargs)
+        return super(WebApplication, self).serve(**args)
+
+
 class WebModule(Module):
+    static_root = Flag('--static_root', help='Path to web server static resources.', metavar='PATH')
+    bind_address = Flag('--bind_address', help='Address to bind HTTP server to.', metavar='IP', default='127.0.0.1')
+    bind_port = Flag('--bind_port', help='Port to bind HTTP server to.', metavar='PORT', type=int, default='8080')
+
     def configure(self, binder):
         binder.bind_scope(RequestScope)
         binder.multibind(Routes, to=[], scope=singleton)
@@ -113,19 +139,3 @@ class WebModule(Module):
             binder.injector.get(RequestScopeMiddleware),
         ], scope=singleton)
         binder.multibind(Routes, to=_routes, scope=singleton)
-
-    @provides(WebApplication, scope=singleton)
-    @inject(middlewares=Middlewares, routes=Routes, resources=Resources,
-            error_handlers=ErrorHandlers, injector=Injector,
-            render_factory=RenderFactory)
-    def provide_applicaton(self, middlewares, routes, resources,
-                           error_handlers, injector, render_factory):
-        routes = [(p, (injector.wrap_function(f) if hasattr(f, '__bindings__') else f), r)
-                  for p, f, r in routes]
-        return WebApplication(
-            routes=routes,
-            resources=resources,
-            middlewares=middlewares,
-            error_handlers=error_handlers,
-            render_factory=render_factory,
-            )

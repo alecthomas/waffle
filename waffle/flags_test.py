@@ -4,8 +4,8 @@ from .flags import FlagsModule, Flag, FlagKey
 
 
 class TestModule(Module):
-    flag1 = Flag('--flag1', default=1)
-    flag2 = Flag('--flag2')
+    flag1 = Flag('--flag1', default=1, type=int)
+    flag2 = Flag('--flag2', type=int)
 
     def configure(self, binder):
         assert self.flag1 == 1

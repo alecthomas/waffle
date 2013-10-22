@@ -1,6 +1,7 @@
 import sys
 import inspect
 from functools import wraps
+from itertools import chain
 
 from argparse import ArgumentParser, HelpFormatter, SUPPRESS, OPTIONAL, ZERO_OR_MORE
 from injector import Injector, Binder, Module, Key, SequenceKey, MappingKey, singleton, provides, inject
@@ -123,19 +124,27 @@ class FlagsModule(Module):
         self.defaults = defaults or {}
 
     @provides(ArgumentParser, scope=singleton)
-    @inject(binder=Binder, flags=_ProvidedFlags, defaults=FlagDefaults)
-    def provide_argh_parser(self, binder, flags, defaults):
+    @inject(binder=Binder, flags=_ProvidedFlags)
+    def provide_argh_parser(self, binder, flags):
         parser = ArgumentParser(fromfile_prefix_chars='@', formatter_class=ArgumentDefaultsHelpFormatter)
         for args, kwargs in flags:
             parser.add_argument(*args, **kwargs)
-        parser.set_defaults(**self.defaults)
-        parser.set_defaults(**defaults)
         return parser
 
     @provides(Flags, scope=singleton)
-    @inject(parser=ArgumentParser)
-    def provide_flags(self, parser):
-        return parser.parse_args(self.args[1:])
+    @inject(parser=ArgumentParser, defaults=FlagDefaults)
+    def provide_flags(self, parser, defaults):
+        parser.set_defaults(**defaults)
+        parser.set_defaults(**self.defaults)
+        # NOTE: parser.set_defaults() does not satisfy "required" arguments,
+        # so we synthesize flags in order to override them. Annoying. Bug?
+        default_args = []
+        for k, v in chain(defaults.iteritems(), self.defaults.iteritems()):
+            if isinstance(v, bool):
+                default_args.append('--%s' % k)
+            else:
+                default_args.append('--%s=%s' % (k, v))
+        return parser.parse_args(default_args + self.args[1:])
 
     def configure(self, binder):
         binder.multibind(FlagDefaults, to={}, scope=singleton)

@@ -1,63 +1,17 @@
 from __future__ import absolute_import
 
-import codecs
-import os
+from injector import Module, Injector, inject, singleton, provides
+from jinja2 import Environment
+from clastic import Response, Request
 
-from injector import Module, MappingKey, Binder, Injector, inject, singleton, provides
-from jinja2 import Environment, BaseLoader, TemplateNotFound, StrictUndefined
-from clastic import Middleware, Response
-
-from waffle.flags import Flag, FlagKey
-from waffle.web.clastic import RenderFactory, Middlewares, RequestScope
+from waffle.template import TemplateContext
+from waffle.web.clastic import RenderFactory, SessionCookie
 
 
-"""Jinja2 based templating system for Waffle.
+"""Template support for the Waffle web layer.
 
-The render context for templates can be extended by Injector modules with:
-
-    binder.multibind(TemplateContext, to={
-        'debug': debug,
-    })
-
+Provides a Clastic renderer, and middleware that configures the Jinja context.
 """
-
-
-# A binding key for contributors to the template context. See
-# :class:`TemplateModule` for an example of how to extend the context.
-TemplateContext = MappingKey('TemplateContext')
-# Jinja2 template globals.
-TemplateGlobals = MappingKey('TemplateGlobals')
-# A binding key for contributing filters to templates.
-TemplateFilters = MappingKey('TemplateFilters')
-
-
-_filters = {}
-
-
-def template_filter(name):
-    """Register a template filter."""
-    def apply(f):
-        _filters[name] = f
-        return f
-    return apply
-
-
-@singleton
-class Loader(BaseLoader):
-    """Template loader."""
-
-    @inject(template_root=FlagKey('template_root'))
-    def __init__(self, template_root):
-        assert template_root, 'template_root must be provided'
-        self._template_root = template_root
-
-    def get_source(self, environment, template):
-        path = os.path.join(self._template_root, template)
-        if not os.path.exists(path):
-            raise TemplateNotFound(template)
-        mtime = os.path.getmtime(path)
-        with codecs.open(path, encoding='utf-8') as fd:
-            return fd.read(), path, lambda: mtime == os.path.getmtime(path)
 
 
 class Jinja2RenderFactory(object):
@@ -76,64 +30,15 @@ class Jinja2RenderFactory(object):
         return render
 
 
-class UrlFor(object):
-    def __init__(self, url_adapter):
-        self._url_adapter = url_adapter
-
-    def __call__(self, endpoint, **values):
-        force_external = values.pop('force_external', False)
-        return self._url_adapter.build(endpoint, values, force_external=force_external)
-
-
-class TemplateMiddleware(Middleware):
-    def __init__(self, binder):
-        self._binder = binder
-
-    def request(self, next, request, session):
-        self._binder.bind(TemplateContext, to={
-            'session': session,
-            'request': request,
-            # 'url_for': url_for,
-            # 'static': lambda filename: url_for('static', filename=filename),
-            }, scope=RequestScope)
-        return next()
-
-
-class TemplateModule(Module):
-    """Add support for Jinja2 templates.
-
-    Provides compiled templates via Template(template), and the Environment
-    itself. The default context for a template can be extended by multibinding
-    TemplateContext.
-    """
-
-    template_root = Flag('--template_root', metavar='DIR', help='Root directory for HTML templates.')
-
-    def configure(self, binder):
-        binder.multibind(TemplateGlobals, to={}, scope=singleton)
-        binder.multibind(TemplateFilters, to={}, scope=singleton)
-        binder.multibind(TemplateContext, to={}, scope=RequestScope)
-
-    @provides(TemplateGlobals)
-    @inject(debug=FlagKey('debug'))
-    def provide_template_globals(self, debug):
-        return {'debug': debug}
-
-    @provides(Environment, scope=singleton)
-    @inject(loader=Loader, debug=FlagKey('debug'), filters=TemplateFilters, globals=TemplateGlobals)
-    def provides_template_environment(self, loader, debug, filters, globals=globals):
-        env = Environment(loader=loader, autoescape=True, auto_reload=debug, undefined=StrictUndefined)
-        env.filters.update(_filters)
-        env.filters.update(filters)
-        env.globals.update(globals)
-        return env
+class WebTemplateModule(Module):
+    """Add support for Jinja2 templates to Clastic."""
 
     @provides(RenderFactory, scope=singleton)
     @inject(environment=Environment, injector=Injector)
     def provide_render_factory(self, environment, injector):
         return Jinja2RenderFactory(environment, injector)
 
-    @provides(Middlewares, scope=singleton)
-    @inject(binder=Binder)
-    def provide_template_middleware(self, binder):
-        return [TemplateMiddleware(binder)]
+    @provides(TemplateContext)
+    @inject(session=SessionCookie, request=Request)
+    def provide_template_context(self, session, request):
+        return {'session': session, 'request': request}

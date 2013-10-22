@@ -87,3 +87,22 @@ class TestDatabaseSessionManager(object):
                     raise ValueError
 
         assert not self.session._registry()._depth
+
+    def test_explicit_rollback(self):
+        with self.session:
+            User(name='bob').save()
+            self.session.rollback()
+
+        with self.session:
+            assert User.query.filter_by(name='bob').count() == 0
+
+    def test_get_or_create(self):
+        with self.session:
+            a, a_created = User.get_or_create(name='bob')
+            assert a_created
+
+        with self.session:
+            b, b_created = User.get_or_create(name='bob')
+            assert not b_created
+
+        assert a.id == b.id

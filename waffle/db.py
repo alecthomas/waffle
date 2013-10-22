@@ -1,4 +1,5 @@
 import inspect
+import types
 import logging
 from functools import wraps
 
@@ -7,10 +8,11 @@ from sqlalchemy.engine import Engine as DatabaseEngine
 from sqlalchemy.orm import sessionmaker, class_mapper
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy import create_engine
-from sqlalchemy.exc import InvalidRequestError
+from sqlalchemy.exc import InvalidRequestError, IntegrityError
 from sqlalchemy.orm.exc import UnmappedClassError
 from sqlalchemy.orm.session import Session
 from sqlalchemy.util import ThreadLocalRegistry
+from sqlalchemy.sql.expression import ClauseElement
 
 from waffle.flags import Flag
 
@@ -25,13 +27,17 @@ class ExplicitSession(Session):
 
     def __enter__(self):
         self._depth += 1
-        self.begin(subtransactions=True)
+        if self._depth == 1:
+            self.begin()
+        else:
+            self.begin_nested()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is None:
             self.flush()
-            self.commit()
+            if self.transaction is not None:
+                self.commit()
         else:
             self.rollback()
         self._depth -= 1
@@ -60,12 +66,25 @@ class ExplicitSessionManager(object):
         if not self._registry.has():
             sess = self._session_factory()
             self._registry.set(sess)
-        return self._registry().__enter__()
+        else:
+            sess = self._registry()
+        return sess.__enter__()
+
+    def begin(self):
+        return self.__enter__()
 
     def __exit__(self, exc_type, exc_value, traceback):
         if self._registry.has():
             sess = self._registry()
             sess.__exit__(exc_type, exc_value, traceback)
+
+    def commit(self):
+        sess = self._registry()
+        sess.commit()
+
+    def rollback(self):
+        sess = self._registry()
+        sess.rollback()
 
     def remove(self):
         """Close the associated session and disconnect."""
@@ -115,7 +134,28 @@ class _Model(object):
 
     @property
     def query_self(self):
+        """Return a query constrained to the current object."""
         return self.query.filter(self.__class__.id == self.id)
+
+    @classmethod
+    def get_or_create(cls, defaults={}, **kwargs):
+        with cls.query.session:
+            query = cls.query.filter_by(**kwargs)
+            instance = query.first()
+            if instance:
+                return instance, False
+            else:
+                with cls.query.session as session:
+                    try:
+                        params = dict((k, v) for k, v in kwargs.iteritems() if not isinstance(v, ClauseElement))
+                        params.update(defaults)
+                        instance = cls(**params)
+                        session.add(instance)
+                        return instance, True
+                    except IntegrityError:
+                        session.rollback()
+                        instance = query.one()
+                        return instance, False
 
     def __repr__(self):
         def reprs(cls):
@@ -155,12 +195,11 @@ class DatabaseModule(Module):
     - Provides DatabaseSession, a thread safe factory for SQLAlchemy sessions.
     """
 
-    database_uri = Flag('--database_uri', help='Database URI.', metavar='URI')
+    database_uri = Flag('--database_uri', help='Database URI.', metavar='URI', required=True)
     database_pool_size = Flag('--database_pool_size', help='Database connection pool size.', metavar='N', default=5)
 
     @provides(DatabaseEngine, scope=singleton)
     def provide_db_engine(self):
-        assert self.database_uri, '--database_uri not set, set a default in main() or run()'
         logging.info('Connecting to %s', self.database_uri)
         extra_args = {}
         if not self.database_uri.startswith('sqlite:'):
@@ -184,7 +223,7 @@ def session_from(thing):
     if isinstance(thing, (ExplicitSession, ExplicitSessionManager)):
         return thing
 
-    if isinstance(thing, Model) or type(thing) is type and issubclass(thing, Model):
+    if isinstance(thing, Model) or isinstance(thing, types.TypeType) and issubclass(thing, Model):
         return thing.query.session
 
     if hasattr(thing, '_session'):

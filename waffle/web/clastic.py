@@ -118,7 +118,8 @@ class WebApplication(Application):
 
     @inject(flags=Flags)
     def serve(self, flags, **kwargs):
-        args = dict(address=flags.bind_address, port=flags.bind_port, use_reloader=flags.debug, **kwargs)
+        args = dict(address=flags.bind_address, port=flags.bind_port, use_reloader=flags.debug,
+                    static_path=flags.static_root, **kwargs)
         return super(WebApplication, self).serve(**args)
 
 

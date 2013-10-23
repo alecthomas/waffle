@@ -17,6 +17,9 @@ from sqlalchemy.sql.expression import ClauseElement
 from waffle.flags import Flag
 
 
+logger = logging.getLogger(__name__)
+
+
 DatabaseSession = Session
 
 
@@ -200,7 +203,7 @@ class DatabaseModule(Module):
 
     @provides(DatabaseEngine, scope=singleton)
     def provide_db_engine(self):
-        logging.info('Connecting to %s', self.database_uri)
+        logger.info('Connecting to %s', self.database_uri)
         extra_args = {}
         if not self.database_uri.startswith('sqlite:'):
             extra_args['pool_size'] = self.database_pool_size

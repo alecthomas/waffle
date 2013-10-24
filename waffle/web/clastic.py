@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+from datetime import timedelta
+
 from injector import Injector, Module, Scope, ScopeDecorator, InstanceProvider, \
     Key, Binder, SequenceKey, MappingKey, provides, inject, singleton
 from clastic import Application, Middleware as WebMiddleware, Request, render_basic
@@ -7,6 +9,7 @@ from clastic.middleware.session import CookieSessionMiddleware, JSONCookie
 from werkzeug.local import Local, LocalManager
 
 from waffle.flags import Flag, Flags
+from waffle.util import parse_reltime
 
 
 Routes = SequenceKey('Routes')
@@ -127,16 +130,25 @@ class WebModule(Module):
     static_root = Flag('--static_root', help='Path to web server static resources.', metavar='PATH')
     bind_address = Flag('--bind_address', help='Address to bind HTTP server to.', metavar='IP', default='127.0.0.1')
     bind_port = Flag('--bind_port', help='Port to bind HTTP server to.', metavar='PORT', type=int, default='8080')
+    session_lifetime = Flag('--session_lifetime', help='Lifetime of cookies as reltime.', type=parse_reltime, metavar='RELTIME', default=timedelta(days=1))
+    session_secret = Flag('--session_secret', help='Secret used to encrypt cookies', metavar='SECRET', required=True)
 
     def configure(self, binder):
         binder.bind_scope(RequestScope)
         binder.multibind(Routes, to=[], scope=singleton)
         binder.multibind(Resources, to={}, scope=singleton)
         binder.multibind(ErrorHandlers, to={}, scope=singleton)
+        binder.multibind(Middlewares, to=[], scope=singleton)
         binder.bind(RenderFactory, to=None, scope=singleton)
         binder.bind(RequestScopeMiddleware)
-        binder.multibind(Middlewares, to=[
-            CookieSessionMiddleware(cookie_name='waffle_session'),
-            binder.injector.get(RequestScopeMiddleware),
-        ], scope=singleton)
         binder.multibind(Routes, to=_routes, scope=singleton)
+
+    @provides(Middlewares)
+    @inject(binder=Binder)
+    def provide_middleware(self, binder):
+        return [
+            CookieSessionMiddleware(cookie_name='waffle_session',
+                                    secret_key=self.session_secret,
+                                    expiry=self.session_lifetime.total_seconds()),
+            binder.injector.get(RequestScopeMiddleware),
+        ]

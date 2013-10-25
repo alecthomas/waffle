@@ -66,7 +66,10 @@ class _ProvideFlag(object):
     def __get__(self, instance, owner):
         if instance is None:
             return owner
-        return instance.__injector__.get(FlagKey(self._dest))
+        try:
+            return instance.__injector__.get(FlagKey(self._dest))
+        except:
+            return self
 
 
 def _extract_dest(args, kwargs):
@@ -224,7 +227,8 @@ def main(_f=None, **defaults):
             pass
     """
     def wrapper(f):
-        injector = create_injector_from_flags(modules=getattr(f, '__injector_modules__', []), defaults=defaults)
+        modules = getattr(f, '__injector_modules__', [])
+        injector = create_injector_from_flags(modules=modules, defaults=defaults)
 
         @wraps(f)
         def inner():

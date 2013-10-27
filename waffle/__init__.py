@@ -20,7 +20,7 @@ all_by_module = {
     'waffle.db':            ['DatabaseSession', 'Model', 'DatabaseModule',
                              'DatabaseEngine', 'transaction', 'session_from'],
     'waffle.flags':         ['Flags', 'Flag', 'FlagsModule', 'FlagDefaults', 'AppStartup',
-                             'FlagKey', 'flag', 'modules', 'main', 'create_injector_from_flags', 'parse_reltime'],
+                             'FlagKey', 'flag', 'modules', 'main', 'create_injector_from_flags'],
     'waffle.devel':         ['DebugConsoleContext', 'DevelModule'],
     'waffle.redis':         ['RedisModule'],
     'waffle.util':          ['parse_reltime'],

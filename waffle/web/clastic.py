@@ -24,6 +24,8 @@ _routes = []
 
 
 class RoutesModule(Module):
+    """Bind a set of manually defined routes."""
+
     def __init__(self, routes):
         self._routes = routes or []
 
@@ -32,7 +34,7 @@ class RoutesModule(Module):
 
 
 def routes(*routes):
-    """A decorator that adds routes to the injector."""
+    """A decorator that adds routes to the main entry point injector."""
 
     routes = [(f.__route__[0], f, f.__route__[1]) for f in routes]
     modules = [RoutesModule(routes)]
@@ -45,6 +47,8 @@ def routes(*routes):
 
 
 def route(path, renderer=render_basic):
+    """Define a new route."""
+
     def apply(f):
         f.__route__ = (path, renderer)
         _routes.append((path, f, renderer))
@@ -130,8 +134,11 @@ class WebModule(Module):
     static_root = Flag('--static_root', help='Path to web server static resources.', metavar='PATH')
     bind_address = Flag('--bind_address', help='Address to bind HTTP server to.', metavar='IP', default='127.0.0.1')
     bind_port = Flag('--bind_port', help='Port to bind HTTP server to.', metavar='PORT', type=int, default='8080')
-    session_lifetime = Flag('--session_lifetime', help='Lifetime of cookies as reltime.', type=parse_reltime, metavar='RELTIME', default=timedelta(days=1))
+    session_lifetime = Flag('--session_lifetime', help='Lifetime of cookies as reltime.', type=parse_reltime,
+                            metavar='RELTIME', default=timedelta(days=1))
     session_secret = Flag('--session_secret', help='Secret used to encrypt cookies', metavar='SECRET', required=True)
+    server_address = Flag('--server_address', help='Fully qualified URL of server (excluding trailing slash).',
+                          default='http://127.0.0.1:8080', metavar='URL')
 
     def configure(self, binder):
         binder.bind_scope(RequestScope)

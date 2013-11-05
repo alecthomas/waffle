@@ -30,7 +30,7 @@ all_by_module = {
     'waffle.web.common':    ['WebModules'],
     'waffle.web.clastic':   ['RequestScope', 'WebModule', 'WebApplication',
                              'Request', 'Routes', 'Middlewares', 'Resources', 'ErrorHandlers',
-                             'RenderFactory', 'SessionCookie', 'route', 'routes'],
+                             'RenderFactory', 'SessionCookie', 'route', 'routes', 'request'],
     'waffle.web.csrf':      ['CsrfModule', 'csrf_exempt'],
     'waffle.web.db':        ['DatabaseSessionModule'],
     'waffle.web.template':  ['WebTemplateModule'],

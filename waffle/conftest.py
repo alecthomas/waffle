@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import sys
 import logging
 
 import pytest
@@ -14,6 +15,8 @@ class TestingModule(Module):
     def configure(self, binder):
         binder.bind(FlagKey('database_uri'), to='postgresql://localhost:5432/waffle')
         binder.bind(FlagKey('database_pool_size'), to=0)
+        stderr = logging.StreamHandler(sys.stderr)
+        logging.getLogger('sqlalchemy').addHandler(stderr)
         logging.getLogger('sqlalchemy.engine').setLevel(logging.DEBUG)
 
 

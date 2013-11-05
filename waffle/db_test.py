@@ -84,6 +84,8 @@ class TestDatabaseSessionManager(object):
             with self.session:
                 User(name='bob').save()
                 with self.session:
+                    User(name='fred').save()
+                    self.session.flush()
                     raise ValueError
 
         assert not self.session._registry()._depth

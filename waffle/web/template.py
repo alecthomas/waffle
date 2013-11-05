@@ -20,9 +20,8 @@ class Jinja2RenderFactory(object):
         self._injector = injector
 
     def __call__(self, template_filename):
-        template = self._env.get_template(template_filename)
-
         def render(context):
+            template = self._env.get_template(template_filename)
             merged_context = dict(self._injector.get(TemplateContext), **context)
             content = template.render(**merged_context)
             return Response(content, status=200, mimetype='text/html')

@@ -3,9 +3,9 @@ import types
 import logging
 from functools import wraps
 
-from injector import Module, inject, provides, singleton
+from injector import Module, SequenceKey, inject, provides, singleton
 from sqlalchemy.engine import Engine as DatabaseEngine
-from sqlalchemy.orm import sessionmaker, class_mapper
+from sqlalchemy.orm import Query, sessionmaker, class_mapper
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy import create_engine
 from sqlalchemy.exc import InvalidRequestError, IntegrityError
@@ -21,6 +21,13 @@ logger = logging.getLogger(__name__)
 
 
 DatabaseSession = Session
+DatabaseCreated = SequenceKey('DatabaseCreated')
+
+
+class Query(Query):
+    def flatten(self):
+        """Flatten row tuples to the first (and only) value."""
+        return [i for i, in self]
 
 
 class ExplicitSession(Session):
@@ -81,14 +88,6 @@ class ExplicitSessionManager(object):
             sess = self._registry()
             sess.__exit__(exc_type, exc_value, traceback)
 
-    def commit(self):
-        sess = self._registry()
-        sess.commit()
-
-    def rollback(self):
-        sess = self._registry()
-        sess.rollback()
-
     def remove(self):
         """Close the associated session and disconnect."""
         if self._registry.has():
@@ -116,7 +115,7 @@ class ExplicitSessionManager(object):
     def __getattr__(self, name):
         """Proxy all attribute access to current session."""
         if not self._registry.has():
-            raise InvalidRequestError('No transaction is active, use with session: ...')
+            raise InvalidRequestError('No transaction is active, use "with session: ..."')
         return getattr(self._registry(), name)
 
 
@@ -201,6 +200,9 @@ class DatabaseModule(Module):
     database_uri = Flag('--database_uri', help='Database URI.', metavar='URI', required=True)
     database_pool_size = Flag('--database_pool_size', help='Database connection pool size.', metavar='N', default=5)
 
+    def configure(self, binder):
+        binder.bind(DatabaseCreated, to=[], scope=singleton)
+
     @provides(DatabaseEngine, scope=singleton)
     def provide_db_engine(self):
         logger.info('Connecting to %s', self.database_uri)
@@ -213,7 +215,7 @@ class DatabaseModule(Module):
     @provides(DatabaseSession, scope=singleton)
     @inject(engine=DatabaseEngine)
     def provide_db_session(self, engine):
-        factory = sessionmaker(autocommit=True, autoflush=True, bind=engine, class_=ExplicitSession)
+        factory = sessionmaker(autocommit=True, autoflush=True, bind=engine, query_cls=Query, class_=ExplicitSession)
         session = ExplicitSessionManager(factory)
         Model.query = session.query_property()
         Model.metadata.create_all(bind=engine)

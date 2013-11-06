@@ -29,6 +29,10 @@ class Query(Query):
         """Flatten row tuples to the first (and only) value."""
         return [i for i, in self]
 
+    def column(self, i):
+        """Return list of values from column i in result."""
+        return [r[i] for r in self]
+
 
 class ExplicitSession(Session):
     def __init__(self, *args, **kwargs):

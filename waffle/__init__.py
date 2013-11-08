@@ -26,7 +26,7 @@ all_by_module = {
     'waffle.util':          ['parse_reltime'],
     'waffle.log':           ['LogLevel', 'LoggingModule'],
     'waffle.template':      ['TemplateContext', 'TemplateGlobals', 'TemplateFilters',
-                             'TemplateModule', 'template_filter'],
+                             'TemplateModule', 'template_filter', 'template_function'],
     'waffle.web.common':    ['WebModules'],
     'waffle.web.clastic':   ['RequestScope', 'WebModule', 'WebApplication',
                              'Request', 'Routes', 'Middlewares', 'Resources', 'ErrorHandlers',

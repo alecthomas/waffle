@@ -30,12 +30,21 @@ TemplateFilters = MappingKey('TemplateFilters')
 
 
 _filters = {}
+_functions = {}
 
 
 def template_filter(name):
     """Register a template filter."""
     def apply(f):
         _filters[name] = f
+        return f
+    return apply
+
+
+def template_function(name):
+    """Register a global function."""
+    def apply(f):
+        _functions[name] = f
         return f
     return apply
 
@@ -83,5 +92,6 @@ class TemplateModule(Module):
         env = Environment(loader=loader, autoescape=True, auto_reload=debug, undefined=StrictUndefined)
         env.filters.update(_filters)
         env.filters.update(filters)
+        env.globals.update(_functions)
         env.globals.update(globals)
         return env

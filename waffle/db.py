@@ -47,14 +47,10 @@ class ExplicitSession(Session):
             self.begin_nested()
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        if exc_type is None:
-            self.flush()
-            if self.transaction is not None:
-                self.commit()
-        else:
-            self.rollback()
+    def __exit__(self, type, value, traceback):
         self._depth -= 1
+        if self.transaction is not None:
+            self.transaction.__exit__(type, value, traceback)
 
 
 class ExplicitSessionManager(object):
@@ -87,10 +83,10 @@ class ExplicitSessionManager(object):
     def begin(self):
         return self.__enter__()
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, type, value, traceback):
         if self._registry.has():
             sess = self._registry()
-            sess.__exit__(exc_type, exc_value, traceback)
+            sess.__exit__(type, value, traceback)
 
     def remove(self):
         """Close the associated session and disconnect."""

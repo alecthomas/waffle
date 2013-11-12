@@ -81,7 +81,7 @@ def _extract_dest(args, kwargs):
     for arg in args:
         if arg.startswith('-'):
             return arg[1:]
-    raise ValueError('could not extract dest for flag with args %r %r' % (args, kwargs))
+    return args[0]
 
 
 def Flag(*args, **kwargs):
